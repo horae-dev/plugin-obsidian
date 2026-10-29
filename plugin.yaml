@@ -1,0 +1,16 @@
+# Written by `uv run python -m horae_obsidian --manifest > plugin.yaml`; tests/test_manifest.py
+# checks it is what the SDK writes. When installing, pin runtime.command to an absolute
+# interpreter that has this package (horae-sdk README, "The command").
+name: obsidian
+version: 0.1.0
+horae: '>=0'
+description: Reads and writes an Obsidian vault in Obsidian Tasks syntax.
+license: Apache-2.0
+provides: {}
+permissions: {}
+runtime:
+  protocol: mcp-stdio
+  command:
+  - python3
+  - -m
+  - horae_obsidian
