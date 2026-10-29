@@ -78,8 +78,7 @@ jobs:
           version: ${{ env.UV_VERSION }}
           cache-python: true
       - run: uv sync
-      # Replays tests/recordings (record mode is refused in CI); the 85% gate comes from
-      # [tool.coverage.report] in pyproject.toml.
+      # The 85% gate comes from [tool.coverage.report] in pyproject.toml.
       - run: uv run pytest --cov --cov-report=term-missing
 
   gitleaks:

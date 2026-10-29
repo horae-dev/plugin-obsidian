@@ -14,7 +14,7 @@ Closes #<issue>
 - [ ] CI green: the **CI OK** check (lockfile, lint, types, tests + coverage, gitleaks)
 - [ ] `uv run pre-commit run --all-files` passes locally
 - [ ] `plugin.yaml` regenerated (`uv run python -m horae_obsidian --manifest > plugin.yaml`) if tools or permissions changed
-- [ ] Recordings in `tests/recordings/` are synthetic (no personal data, no secret) and their diff reviewed
+- [ ] Fixtures in `tests/fixtures/` are synthetic (no personal data, no secret)
 - [ ] Commits carry `Graft-Agent`, `Graft-Model` and `Graft-Task` trailers
 
 ## Declared additions
