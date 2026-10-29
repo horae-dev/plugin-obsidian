@@ -6,8 +6,14 @@ version: 0.1.0
 horae: '>=0'
 description: Reads and writes an Obsidian vault in Obsidian Tasks syntax.
 license: Apache-2.0
-provides: {}
-permissions: {}
+provides:
+  sinks:
+  - obsidian.write_note
+permissions:
+  intents:
+  - note.create
+  - note.append_section
+  - note.replace_owned_block
 runtime:
   protocol: mcp-stdio
   command:
