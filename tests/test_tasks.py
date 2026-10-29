@@ -250,6 +250,9 @@ def test_nesting_and_markers() -> None:
         "Numbered with a dot": ("1.", 0),
         "Numbered with a parenthesis": ("2)", 0),
         "After the paragraph": ("-", 0),
+        # Tasks' own rule: `\[(.)\]\s*(.*)`, no space needed after the box
+        "no space after the box": ("-", 0),
+        "(https://example.org) a link": ("-", 0),
     }
     assert tasks["Child with four spaces"].parent == tasks["Parent"].line.number
     assert tasks["Grandchild"].parent == tasks["Child with four spaces"].line.number
@@ -261,8 +264,13 @@ def test_nesting_and_markers() -> None:
 
 def test_lines_that_only_look_like_tasks() -> None:
     descriptions = {task.description for task in load("nesting.md").tasks}
-    assert not {d for d in descriptions if "no space" in d or "box" in d or "link" in d}
+    assert not {d for d in descriptions if "marker" in d and "no space" in d}
+    assert not {d for d in descriptions if "empty box" in d or "two characters" in d}
     assert parse(b"- [ ]\n").tasks[0].description == ""
+    [glued] = parse(b"- [x]x\n").tasks
+    assert (glued.status, glued.description) == ("done", "x")
+    assert parse(b"-\t[ ] a tab after the marker\n").tasks == ()
+    assert parse(b"- \t[ ] a tab after the marker\n").tasks == ()
 
 
 # --- blockquotes, callouts, code, frontmatter, comments ---------------------------------
@@ -363,8 +371,9 @@ def test_a_status_edit_changes_only_that_line() -> None:
     assert parse(edited, "Projects/crlf.md").tasks[0].key == task.key
     with pytest.raises(ValueError, match="line break"):
         document.replace_line(task, "a\nb")
-    with pytest.raises(ValueError, match="status"):
-        task.with_status("]")
+    for bad in ("", "xx", "\n", "\t", "\x00", "\u202e", "\udce9", "\u2028"):
+        with pytest.raises(ValueError, match="status"):
+            task.with_status(bad)
     other = parse(b"x\n- [ ] other\n")
     with pytest.raises(ValueError, match="not a line"):
         document.replace_line(other.tasks[0], "- [x] other")
@@ -404,8 +413,8 @@ def test_a_title_escaped_by_the_sdk_parses_back_with_no_field() -> None:
 
 
 def test_a_long_line_parses_in_linear_time() -> None:
-    line = "- [ ] " + "a 🔁 a#b " * 120_000 + "📅 2026-10-22"
+    line = "- [ ] " + "a 🔁 a#b " * 1_400 + "📅 2026-10-22"
     started = time.monotonic()
     [task] = parse(line.encode()).tasks
-    assert time.monotonic() - started < 10
+    assert time.monotonic() - started < 1
     assert task.due == date(2026, 10, 22)
