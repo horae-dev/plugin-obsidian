@@ -1,0 +1,12 @@
+{
+  "inbox": [
+    {"id": "m-1", "subject": "Quarterly report draft"},
+    {"id": "m-2", "subject": "Lunch on Friday?"}
+  ],
+  "hostile": [
+    {"id": "m-3", "subject": "Pay now 📅 2020-01-01 🔁 every day #urgent [[secrets]] https://example.org"},
+    {"id": 4, "subject": "an id that is not a string is skipped"},
+    {"id": "m-5"}
+  ],
+  "empty": []
+}

@@ -20,6 +20,22 @@ It will declare every host, secret, path and intent it uses in `plugin.yaml`, an
 
 Stories, estimates and acceptance criteria are in this repository's [issues](../../issues) and on the [roadmap project](https://github.com/orgs/horae-dev/projects/1).
 
+## Development
+
+The repository was scaffolded from [`template-plugin`](https://github.com/horae-dev/template-plugin):
+an MCP stdio server built on [`horae-sdk`](https://github.com/horae-dev/horae/tree/main/sdk), a
+`plugin.yaml` generated from the code, and CI (lockfile, ruff, mypy strict, pytest with an 85%
+coverage gate, gitleaks, and the aggregate **CI OK** check). `horae-sdk` is not on PyPI yet:
+`pyproject.toml` takes it from the core repository's `main` and `uv.lock` pins the commit.
+
+```
+uv sync
+uv lock --check && uv run ruff check && uv run ruff format --check && uv run mypy && uv run pytest --cov
+uv run python -m horae_obsidian --manifest > plugin.yaml   # after changing tools or permissions
+```
+
+See [AGENTS.md](AGENTS.md) for every command.
+
 ## Contributing
 
 This project is developed mostly by AI coding agents supervised by a human maintainer. Read [AGENTS.md](AGENTS.md) for the workflow (it applies to humans too), and the organization's [contributing guide](https://github.com/horae-dev/.github/blob/main/CONTRIBUTING.md) and [security policy](https://github.com/horae-dev/.github/blob/main/SECURITY.md).

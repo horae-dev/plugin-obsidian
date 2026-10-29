@@ -1,0 +1,20 @@
+# Written by `uv run python -m horae_obsidian --manifest > plugin.yaml`; tests/test_manifest.py
+# checks it is what the SDK writes. When installing, pin runtime.command to an absolute
+# interpreter that has this package (horae-sdk README, "The command").
+name: obsidian
+version: 0.1.0
+horae: '>=0'
+description: Proposes a task to reply to each message of a folder.
+license: Apache-2.0
+provides:
+  sources:
+  - obsidian.inbox
+permissions:
+  intents:
+  - task.create
+runtime:
+  protocol: mcp-stdio
+  command:
+  - python3
+  - -m
+  - horae_obsidian
