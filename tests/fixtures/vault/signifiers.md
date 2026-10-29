@@ -1,0 +1,25 @@
+# Every signifier
+
+- [ ] Due 📅 2026-10-22
+- [ ] Due calendar 📆 2026-10-23
+- [ ] Due spiral 🗓️ 2026-10-24
+- [ ] Due spiral bare 🗓 2026-10-25
+- [ ] Scheduled ⏳ 2026-10-26
+- [ ] Scheduled sand ⌛ 2026-10-27
+- [ ] Start 🛫 2026-10-28
+- [ ] Created ➕ 2026-10-01
+- [x] Done ✅ 2026-10-29
+- [-] Cancelled ❌ 2026-10-30
+- [ ] Recurring 🔁 every week on Monday
+- [ ] Highest 🔺
+- [ ] High ⏫
+- [ ] Medium 🔼
+- [ ] Low 🔽
+- [ ] Lowest ⏬
+- [ ] Has an id 🆔 abc-123
+- [ ] Depends ⛔ abc-123, def_456
+- [ ] Depends with selector ⛔️ abc-123
+- [ ] On completion 🏁 delete
+- [ ] Everything 🔺 🔁 every day ➕ 2026-10-01 🛫 2026-10-02 ⏳ 2026-10-03 📅 2026-10-04 ⏰ 08:30 🆔 all-1 ⛔ abc-123 🏁 keep #home ^everything
+- [ ] Selectors ⏫️ 📅️ 2026-11-01 ✅️ 2026-11-02
+- [ ] No space📅2026-11-03

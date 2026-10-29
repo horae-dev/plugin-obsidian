@@ -19,6 +19,7 @@ packages = ["src/horae_obsidian"]
 
 [dependency-groups]
 dev = [
+    "hypothesis>=6.140",
     "mypy>=2.4",
     "pre-commit>=4.7",
     "pytest>=9.1",
@@ -42,6 +43,8 @@ exclude-newer = "7 days"
 line-length = 100
 target-version = "py312"
 src = ["src", "tests"]
+# Byte-exact Markdown fixtures (CRLF, BOM, invalid UTF-8): never formatted.
+extend-exclude = ["tests/fixtures"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "S", "PT"]

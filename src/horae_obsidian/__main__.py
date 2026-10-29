@@ -5,7 +5,7 @@ import sys
 
 from horae_sdk import dump_manifest
 
-from horae_obsidian.plugin import SampleInbox, build, manifest
+from horae_obsidian.plugin import build, manifest
 
 HEADER = """\
 # Written by `uv run python -m horae_obsidian --manifest > plugin.yaml`; tests/test_manifest.py
@@ -21,7 +21,7 @@ def main(argv: list[str]) -> None:
     if argv:
         sys.exit("usage: python -m horae_obsidian [--manifest]")
     # Never print while serving: stdout is the protocol channel.
-    build(SampleInbox()).run()
+    build().run()
 
 
 if __name__ == "__main__":

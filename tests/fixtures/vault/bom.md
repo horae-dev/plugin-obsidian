@@ -1,0 +1,1 @@
+﻿- [ ] First line after a BOM 📅 2026-10-22

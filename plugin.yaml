@@ -4,14 +4,10 @@
 name: obsidian
 version: 0.1.0
 horae: '>=0'
-description: Proposes a task to reply to each message of a folder.
+description: Reads and writes an Obsidian vault in Obsidian Tasks syntax.
 license: Apache-2.0
-provides:
-  sources:
-  - obsidian.inbox
-permissions:
-  intents:
-  - task.create
+provides: {}
+permissions: {}
 runtime:
   protocol: mcp-stdio
   command:

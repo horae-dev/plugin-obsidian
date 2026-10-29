@@ -22,7 +22,7 @@ uv lock --check                   # uv.lock matches pyproject.toml
 uv run ruff check                 # lint
 uv run ruff format --check        # formatting (drop --check to fix)
 uv run mypy                       # types (strict)
-uv run pytest --cov               # tests: recordings replayed, manifest checked, stdio served; coverage gate 85%
+uv run pytest --cov               # tests: Tasks fixtures and Hypothesis properties, manifest checked, stdio served; coverage gate 85%
 HORAE_SDK_RECORD=1 uv run pytest  # rewrite tests/recordings from the current outputs (review the diff; refused in CI)
 uv run python -m horae_obsidian --manifest > plugin.yaml   # regenerate the manifest
 uv run pre-commit run --all-files # ruff + gitleaks
