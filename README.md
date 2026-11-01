@@ -4,7 +4,7 @@
 
 Horae plugin: read and write an Obsidian vault (Obsidian Tasks syntax), owning only its own files and blocks.
 
-> 🚧 **In progress.** The Tasks parser is in; the source and sinks are not, so there is nothing to install yet. Follow progress on the [Horae roadmap project](https://github.com/orgs/horae-dev/projects/1).
+> 🚧 **In progress.** The Tasks parser and the note sink are in; the Tasks source and the task sink are not, so there is nothing to install yet. Follow progress on the [Horae roadmap project](https://github.com/orgs/horae-dev/projects/1).
 
 ## What this plugin will do
 
@@ -100,6 +100,48 @@ For compare-and-swap writes, `Task.line_sha256` hashes the line's exact bytes an
    `horae_sdk.tasks.task_line`) Tasks queries might not see the due date. To be verified in a
    real vault; if so, `task_line` should write `⏰` before the dates.
 
+## Writing notes (#3)
+
+The `obsidian.write_note` sink applies `note.create`, `note.append_section` and
+`note.replace_owned_block`. **The core computes every note's bytes** (`horae.apply.notes`,
+the same conventions as its dry-run diff) and calls the sink operations `obsidian.read`,
+`.apply`, `.restore`, `.parent_exists` and `.identity`; the plugin writes exactly those bytes
+(`horae_obsidian.writer`) and checks them again on its side:
+
+- **Owned files** are notes whose name ends in `.assistant.md` (the core's rule). Only those
+  are created (never over an existing note: `note_exists`), appended to (the note must exist
+  and keep its bytes) or removed by `horae undo`.
+- **Owned blocks** are `<!-- horae:begin <block> -->` … `<!-- horae:end <block> -->`. In any
+  other note, `note.replace_owned_block` may only change the lines of its one well-formed
+  block already there: duplicated, nested, unbalanced or malformed markers are
+  `block_ambiguous` (the core's rules: any case counts, and so does a marker inside a code
+  fence), a change anywhere else is `not_owned`. In an owned note the block must end up there
+  exactly once and the rest of the note is kept.
+- **Markers on line 1 of a note with a BOM.** As in the core, the BOM is part of the first
+  line, so a marker there is not canonical: the core refuses the block (`block_ambiguous`)
+  and so does the writer. Put the block below the first line. (The Tasks parser reads after
+  the BOM and does see such a block as owned; it never writes.)
+- **`horae undo`** puts every changed note back. In a note Horae does not own it may change
+  any number of blocks (each one well-formed marker pair before and after), but nothing
+  outside them; a malformed or prose marker elsewhere does not stop it. If you edited such a
+  note **outside** its blocks after the run, the undo is refused (`not_owned`), even with
+  `horae undo --force`, which would rewrite the whole note: **repair it by hand** (the
+  journal keeps the original bytes), or move your edit, undo, then put it back.
+- **The vault** is the single `paths.write` entry granted in `horae.lock`, an absolute path
+  (the manifest asks for none). Note paths end in `.md` with no hidden segment (never
+  `.obsidian/`), no `..`, `\`, `:`, control character or lone surrogate, at most 255 UTF-8
+  bytes a segment; a symbolic link anywhere below the vault is never followed.
+- **`path_collision`.** A name that exists in another case or Unicode form (`Today.md` /
+  `today.md`, NFC / NFD) is refused, since a synced vault reaches case-insensitive devices.
+  The error names the file on disk: rename it on disk, or make the pipeline use that exact
+  name.
+- **Writes** are compare-and-swap on the SHA-256 the core planned (`target_changed`), then a
+  temporary file in the note's directory, `fsync`ed, then linked as a new note (never over
+  one created meanwhile) or renamed over the note once its bytes are re-read and hashed, and
+  the directory `fsync`ed, the note's permission bits kept; a failure leaves the note as it
+  was. As for the core's own `file-sink`, an editor or sync client writing the same note at
+  that very moment can still lose its write.
+
 ## Planned work
 
 | Milestone | Epic |
@@ -121,6 +163,13 @@ uv sync
 uv lock --check && uv run ruff check && uv run ruff format --check && uv run mypy && uv run pytest --cov
 uv run python -m horae_obsidian --manifest > plugin.yaml   # after changing tools or permissions
 ```
+
+The writer repeats the core's block-marker rules. `tests/data/core_note_vectors.json` holds
+what the core's real `note_after` makes of a set of notes (CRLF, BOM, markers at the start
+and end, empty, indented and upper-case markers, several blocks), with the core commit in its
+header; the tests check the writer accepts all of it. After a change of
+`horae.apply.notes`, regenerate it from a core checkout:
+`uv run python tests/data/core_vectors.py ../horae origin/main > tests/data/core_note_vectors.json`.
 
 See [AGENTS.md](AGENTS.md) for every command.
 
