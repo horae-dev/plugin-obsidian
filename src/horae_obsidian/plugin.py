@@ -44,4 +44,8 @@ def build() -> Plugin:
 
 def manifest() -> dict[str, Any]:
     """The `plugin.yaml` document of this plugin (`python -m horae_obsidian --manifest`)."""
-    return build().manifest(command=COMMAND, license="Apache-2.0")
+    return build().manifest(
+        command=COMMAND,
+        horae=">=0,<0.2",  # the core is 0.0.x until v0.1; nothing checks it yet
+        license="Apache-2.0",
+    )

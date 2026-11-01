@@ -8,6 +8,7 @@ import asyncio
 import hashlib
 import os
 import stat
+import threading
 import time
 import unicodedata
 from pathlib import Path
@@ -417,8 +418,9 @@ def test_a_note_created_during_a_create_is_kept(
             (vault / OWNED).write_bytes(b"theirs\n")
 
     monkeypatch.setattr(os, "fsync", created_meanwhile)
-    assert refused(vault, create(), b"x\n", None) == "target_changed"
+    assert refused(vault, create(), b"x\n", None) == "note_exists"  # `os.link`: no clobber
     assert (vault / OWNED).read_bytes() == b"theirs\n"
+    assert leftovers(vault / "Daily") == []
 
 
 @pytest.mark.parametrize("fails", ["write", "fsync", "replace", "fchmod"])
@@ -519,7 +521,7 @@ def test_read_and_parent_exists_are_side_effect_free(vault: Path) -> None:
 
 def test_identity_names_the_vault(vault: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     info = os.stat(vault)
-    found = VaultSink([TOOL]).identity(paths(vault))
+    found = asyncio.run(VaultSink([TOOL]).identity(paths(vault)))
     assert found == f"vault:{info.st_dev}:{info.st_ino}:{os.path.realpath(vault)}"
     monkeypatch.setattr(writer, "MAX_IDENTITY", 10)
     assert ":sha256:" in writer.identity(paths(vault))
@@ -590,3 +592,376 @@ def test_block_span_follows_the_core() -> None:
     assert writer.block_span("<!-- horae:begin other -->\n", "brief", "p") is None
     assert writer.begin_marker("x") == "<!-- horae:begin x -->"
     assert writer.end_marker("x") == "<!-- horae:end x -->"
+
+
+# --- undo of several blocks; markers that do not explain the change ----------------------------
+
+OTHER = BLOCK.replace("brief", "other")
+NEW_OTHER = NEW_BLOCK.replace("brief", "other")
+
+
+def test_undo_of_two_blocks_replaced_in_one_user_note(vault: Path) -> None:
+    original = put(vault, USER, f"# Mine\n{BLOCK}middle\n{OTHER}tail\n".encode())
+    now = f"# Mine\n{NEW_BLOCK}middle\n{NEW_OTHER}tail\n".encode()
+    apply(vault, replace(), f"# Mine\n{NEW_BLOCK}middle\n{OTHER}tail\n".encode(), sha(original))
+    apply(vault, replace(block="other"), now, sha((vault / USER).read_bytes()))
+    assert (vault / USER).read_bytes() == now
+    restore(vault, USER, original, sha(now))
+    assert (vault / USER).read_bytes() == original
+
+
+def test_undo_of_one_block_replaced_twice(vault: Path) -> None:
+    original = put(vault, USER, f"# Mine\n{BLOCK}tail\n".encode())
+    first = f"# Mine\n{NEW_BLOCK}tail\n".encode()
+    second = first.replace(b"new\n", b"newer\nlines\n")
+    apply(vault, replace(), first, sha(original))
+    apply(vault, replace(), second, sha(first))
+    restore(vault, USER, original, sha(second))
+    assert (vault / USER).read_bytes() == original
+
+
+def test_undo_of_a_run_that_changed_a_user_block_and_an_owned_note(vault: Path) -> None:
+    user = put(vault, USER, f"# Mine\n{BLOCK}{OTHER}".encode())
+    owned = put(vault, OWNED, b"# Day\n")
+    user_after = f"# Mine\n{NEW_BLOCK}{NEW_OTHER}".encode()
+    owned_after = b"# Day\n\n## H\n\nx\n"
+    put(vault, USER, user_after)
+    put(vault, OWNED, owned_after)
+    created = put(vault, "Daily/new.assistant.md", b"x\n")
+    restore(vault, "Daily/new.assistant.md", None, sha(created))
+    restore(vault, OWNED, owned, sha(owned_after))
+    restore(vault, USER, user, sha(user_after))
+    assert (vault / USER).read_bytes() == user
+    assert (vault / OWNED).read_bytes() == owned
+    assert not (vault / "Daily/new.assistant.md").exists()
+
+
+@pytest.mark.parametrize(
+    "noise",
+    [
+        "I wrote horae:end brief in prose.\n",  # a malformed marker of the same block
+        "<!-- horae:begin draft -->\n",  # an unpaired block
+        "`horae:begin` is how a block starts\n",  # a marker with no name
+    ],
+)
+def test_unrelated_markers_do_not_stop_an_undo(vault: Path, noise: str) -> None:
+    original = put(vault, USER, f"# Mine\n{noise}{OTHER}tail\n".encode())
+    now = put(vault, USER, f"# Mine\n{noise}{NEW_OTHER}tail\n".encode())
+    restore(vault, USER, original, sha(now))
+    assert (vault / USER).read_bytes() == original
+
+
+def test_an_undo_the_blocks_do_not_explain_is_refused(vault: Path) -> None:
+    original = f"# Mine\n<!-- horae:begin brief -->\nold\n{OTHER}".encode()
+    now = put(vault, USER, f"# Mine\n<!-- horae:begin brief -->\nnew\n{NEW_OTHER}".encode())
+    with pytest.raises(SinkError) as raised:  # `brief` has no end: the change is not explained
+        restore(vault, USER, original, sha(now))
+    assert raised.value.kind == "block_ambiguous"
+    plain = put(vault, USER, f"# Mine\n{NEW_OTHER}".encode())
+    with pytest.raises(SinkError) as raised:
+        restore(vault, USER, f"# Edited\n{OTHER}".encode(), sha(plain))
+    assert raised.value.kind == "not_owned"
+    nested = f"{NEW_OTHER[:-25]}<!-- horae:begin x -->\n{NEW_OTHER[-25:]}"
+    put(vault, USER, nested.encode())
+    with pytest.raises(SinkError) as raised:  # the block holds another marker
+        restore(vault, USER, OTHER.encode(), sha(nested.encode()))
+    assert raised.value.kind == "block_ambiguous"
+
+
+def test_a_user_note_edited_outside_its_blocks_is_not_restored_even_under_force(
+    vault: Path,
+) -> None:
+    """`horae undo --force` restores the whole note through `restore`: refused here (README,
+    "manual repair"), the sink having no `force` flag yet."""
+    original = f"# Mine\n{BLOCK}".encode()
+    now = put(vault, USER, f"# Mine, edited\n{NEW_BLOCK}".encode())
+    with pytest.raises(SinkError) as raised:
+        restore(vault, USER, original, sha(now))
+    assert raised.value.kind == "not_owned"
+    assert (vault / USER).read_bytes() == now
+
+
+# --- owned notes: the block and the rest of the note ------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("before", "after", "kind"),
+    [
+        (b"# Day\n" + BLOCK.encode(), b"# EDITED\n" + NEW_BLOCK.encode(), "not_owned"),
+        (b"# Day\n", NEW_BLOCK.encode() + b"# Day\n", "not_owned"),  # not after the note
+        (b"# Day\n", b"# Day\n" + (NEW_BLOCK * 2).encode(), "block_ambiguous"),
+        (b"# Day\n", b"# Day\nno block\n", "block_ambiguous"),
+        (None, NEW_BLOCK.replace("new", "<!-- horae:begin x -->").encode(), "block_ambiguous"),
+    ],
+)
+def test_a_replaced_block_of_an_owned_note_keeps_the_rest(
+    vault: Path, before: bytes | None, after: bytes, kind: str
+) -> None:
+    if before is not None:
+        put(vault, OWNED, before)
+    assert refused(vault, replace(OWNED), after, sha(before)) == kind
+
+
+@pytest.mark.parametrize("block", ["Brief", "-x", "a" * 65, "a b", ""])
+def test_the_block_id_is_the_cores(vault: Path, block: str) -> None:
+    before = put(vault, USER, BLOCK.encode())
+    assert refused(vault, replace(block=block), NEW_BLOCK.encode(), sha(before)) == (
+        "intent_invalid"
+    )
+
+
+# --- paths ---------------------------------------------------------------------------------------
+
+
+def test_lone_surrogates_and_long_utf8_segments_are_refused(vault: Path) -> None:
+    for path in ("Notes/\udcff.assistant.md", "\u00e9" * 122 + ".assistant.md"):
+        assert refused(vault, create(path), b"x\n", None) == "path_invalid"
+    fits = "\u00e9" * 121 + ".assistant.md"  # 255 bytes
+    apply(vault, create(fits), b"x\n")
+    assert (vault / fits).read_bytes() == b"x\n"
+
+
+def test_a_relative_vault_is_a_configuration_error(vault: Path) -> None:
+    with pytest.raises(SinkError, match="must be an absolute path") as raised:
+        writer.read(Paths(write=("vault",)), OWNED)
+    assert raised.value.kind == "config_invalid"
+
+
+def test_a_collision_names_the_name_on_disk(vault: Path) -> None:
+    put(vault, "Daily/Today\u202e.Assistant.md", b"# Mine\n")
+    with pytest.raises(SinkError) as raised:
+        writer.read(paths(vault), "Daily/today\u202e.assistant.md")
+    assert raised.value.kind == "path_collision"
+    assert '"Today\\u202e.Assistant.md"' in raised.value.message
+    assert "\u202e" not in raised.value.message
+
+
+def test_lookup_compares_ascii_and_other_names_alike(monkeypatch: pytest.MonkeyPatch) -> None:
+    listing = ["k.md", "Caf\u00e9.md", "plain.md"]
+    monkeypatch.setattr(os, "listdir", lambda fd: listing)
+    assert writer._lookup(0, "plain.md", "p")
+    assert not writer._lookup(0, "new.md", "p")
+    for name in ("\u212a.md", "K.md", "cafe\u0301.md", "CAF\u00c9.md"):  # Kelvin sign, NFD
+        with pytest.raises(SinkError) as raised:
+            writer._lookup(0, name, "p")
+        assert raised.value.kind == "path_collision", name
+    listing[:] = ["\u212a.md"]
+    with pytest.raises(SinkError):
+        writer._lookup(0, "k.md", "p")
+
+
+def test_a_large_directory_stays_fast(vault: Path) -> None:
+    crowd = vault / "Crowd"
+    crowd.mkdir()
+    for number in range(10_000):
+        (crowd / f"note-{number:05d}.md").touch()
+    (crowd / "Caf\u00e9-\u00e0.md").touch()
+    started = time.perf_counter()
+    for number in range(5):
+        apply(vault, create(f"Crowd/n{number}.assistant.md"), b"x\n")
+        writer.read(paths(vault), f"Crowd/n{number}.assistant.md")
+    assert time.perf_counter() - started < 2.0
+
+
+# --- writes: link, re-read, stale files, faults, concurrency -----------------------------------
+
+
+def test_a_new_note_is_linked_in_place_and_never_clobbers(
+    vault: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    linked: list[tuple[str, str]] = []
+    real_link = os.link
+
+    def spy(src: Any, dst: Any, **kwargs: Any) -> None:
+        linked.append((str(src), str(dst)))
+        real_link(src, dst, **kwargs)
+
+    monkeypatch.setattr(os, "link", spy)
+    apply(vault, create(), b"x\n")
+    ((src, dst),) = linked
+    assert src.startswith(".horae-")
+    assert dst == "2026-10-29.assistant.md"
+    assert (vault / OWNED).stat().st_nlink == 1
+    assert leftovers(vault / "Daily") == []
+
+
+@pytest.mark.parametrize("code", [1, 45, 18])  # EPERM, ENOTSUP / EOPNOTSUPP, EXDEV
+def test_a_file_system_without_hard_links_falls_back_to_rename(
+    vault: Path, monkeypatch: pytest.MonkeyPatch, code: int
+) -> None:
+    def no_link(*args: Any, **kwargs: Any) -> None:
+        raise OSError(code, os.strerror(code))
+
+    monkeypatch.setattr(os, "link", no_link)
+    apply(vault, create(), b"x\n")
+    assert (vault / OWNED).read_bytes() == b"x\n"
+    assert leftovers(vault / "Daily") == []
+
+
+def test_a_failing_link_is_unwritable(vault: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def broken(*args: Any, **kwargs: Any) -> None:
+        raise OSError(5, "Input/output error")
+
+    monkeypatch.setattr(os, "link", broken)
+    assert refused(vault, create(), b"x\n", None) == "unwritable"
+    assert not (vault / OWNED).exists()
+    assert leftovers(vault / "Daily") == []
+
+
+def test_a_same_size_edit_within_the_clock_tick_is_caught(
+    vault: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    before = put(vault, OWNED, b"# Day\n")
+    info = (vault / OWNED).stat()
+    real_sweep = writer._sweep
+
+    def edit_in_place(dir_fd: int) -> None:
+        with open(vault / OWNED, "r+b") as note:  # same inode, same size
+            note.write(b"# Dax\n")
+        os.utime(vault / OWNED, ns=(info.st_atime_ns, info.st_mtime_ns))
+        real_sweep(dir_fd)
+
+    monkeypatch.setattr(writer, "_sweep", edit_in_place)
+    assert refused(vault, append(), before + b"\n## H\n\nx\n", sha(before)) == "target_changed"
+    assert (vault / OWNED).read_bytes() == b"# Dax\n"
+    assert leftovers(vault / "Daily") == []
+
+
+def test_stale_old_files_are_swept_only_when_linked_elsewhere(
+    vault: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    daily = vault / "Daily"
+    note = put(vault, "Daily/kept.md", b"note\n")
+    linked, alone = daily / ".horae-00000000000a.old", daily / ".horae-00000000000b.old"
+    os.link(daily / "kept.md", linked)
+    alone.write_bytes(b"the only copy\n")
+    monkeypatch.setattr(writer, "STALE_TMP_S", -60.0)  # everything counts as stale
+    apply(vault, create(), b"x\n")
+    assert leftovers(daily) == [alone.name]
+    assert (daily / "kept.md").read_bytes() == note
+    assert (daily / "kept.md").stat().st_nlink == 1
+
+
+def test_a_put_back_whose_unlink_fails_still_reports_and_keeps_the_note(
+    vault: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    put(vault, OWNED, b"theirs\n")
+    real_unlink = os.unlink
+
+    def no_unlink(name: Any, **kwargs: Any) -> None:
+        if str(name).endswith(".old"):
+            raise PermissionError(13, "Permission denied")
+        real_unlink(name, **kwargs)
+
+    monkeypatch.setattr(os, "unlink", no_unlink)
+    with pytest.raises(SinkError) as raised:
+        restore(vault, OWNED, None, sha(b"what Horae wrote\n"))  # CAS passes: see below
+    assert raised.value.kind == "target_changed"
+    assert (vault / OWNED).read_bytes() == b"theirs\n"
+
+
+def test_a_failed_put_back_keeps_the_bytes_under_the_old_name(
+    vault: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    put(vault, OWNED, b"mine\n")
+    real_rename = os.rename
+
+    def swapped(src: Any, dst: Any, **kwargs: Any) -> None:
+        (vault / OWNED).write_bytes(b"swapped\n")
+        real_rename(src, dst, **kwargs)
+
+    def no_link(*args: Any, **kwargs: Any) -> None:
+        raise OSError(5, "Input/output error")
+
+    monkeypatch.setattr(os, "rename", swapped)
+    monkeypatch.setattr(os, "link", no_link)
+    with pytest.raises(SinkError, match=r"kept as \.horae-[0-9a-f]{12}\.old") as raised:
+        restore(vault, OWNED, None, sha(b"mine\n"))
+    assert raised.value.kind == "target_changed"
+    (kept,) = leftovers(vault / "Daily")
+    assert (vault / "Daily" / kept).read_bytes() == b"swapped\n"
+
+
+def test_a_failing_close_of_the_temporary_file_leaves_the_note_whole(
+    vault: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    before = put(vault, OWNED, b"# Day\n")
+    real_open, real_close = os.open, os.close
+    temporary: set[int] = set()
+
+    def spy_open(name: Any, flags: int, *args: Any, **kwargs: Any) -> int:
+        fd = real_open(name, flags, *args, **kwargs)
+        if str(name).endswith(".tmp"):
+            temporary.add(fd)
+        return fd
+
+    def failing_close(fd: int) -> None:
+        real_close(fd)
+        if fd in temporary:
+            temporary.discard(fd)
+            raise OSError(28, "No space left on device")  # NFS reports it on close
+
+    monkeypatch.setattr(os, "open", spy_open)
+    monkeypatch.setattr(os, "close", failing_close)
+    assert refused(vault, append(), before + b"\n## H\n\nx\n", sha(before)) == "unwritable"
+    assert (vault / OWNED).read_bytes() == before
+    assert leftovers(vault / "Daily") == []
+
+
+def test_an_interrupted_write_removes_its_temporary_file(
+    vault: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    before = put(vault, OWNED, b"# Day\n")
+
+    def interrupted(fd: int) -> None:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(os, "fsync", interrupted)
+    with pytest.raises(KeyboardInterrupt):
+        apply(vault, append(), before + b"\n## H\n\nx\n", sha(before))
+    assert (vault / OWNED).read_bytes() == before
+    assert leftovers(vault / "Daily") == []
+
+
+def test_a_directory_that_cannot_be_made_is_unwritable(
+    vault: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def no_mkdir(*args: Any, **kwargs: Any) -> None:
+        raise PermissionError(13, "Permission denied")
+
+    monkeypatch.setattr(os, "mkdir", no_mkdir)
+    assert refused(vault, create("New/a.assistant.md"), b"x\n", None) == "unwritable"
+    assert not (vault / "New").exists()
+
+
+def test_two_concurrent_writes_of_one_note_one_wins(
+    vault: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    before = put(vault, USER, f"# Mine\n{BLOCK}".encode())
+    real_sweep = writer._sweep
+    both_read = threading.Barrier(2, timeout=10)
+
+    def after_both_read(dir_fd: int) -> None:
+        both_read.wait()
+        real_sweep(dir_fd)
+
+    monkeypatch.setattr(writer, "_sweep", after_both_read)
+    outcomes: dict[str, str] = {}
+
+    def write(text: str) -> None:
+        after = f"# Mine\n{NEW_BLOCK.replace('new', text)}".encode()
+        try:
+            apply(vault, replace(), after, sha(before))
+            outcomes[text] = "wrote"
+        except SinkError as error:
+            outcomes[text] = error.kind
+
+    threads = [threading.Thread(target=write, args=(text,)) for text in ("one", "two")]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert sorted(outcomes.values()) == ["target_changed", "wrote"]
+    (winner,) = (text for text, outcome in outcomes.items() if outcome == "wrote")
+    assert (vault / USER).read_bytes() == f"# Mine\n{NEW_BLOCK.replace('new', winner)}".encode()
+    assert leftovers(vault / "Notes") == []

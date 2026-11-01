@@ -21,8 +21,8 @@ TOOL = "obsidian.write_note"
 class VaultSink(Sink):
     """Applies `note.create`, `note.append_section` and `note.replace_owned_block`."""
 
-    def identity(self, paths: Paths) -> str:
-        return writer.identity(paths)
+    async def identity(self, paths: Paths) -> str:
+        return await asyncio.to_thread(writer.identity, paths)
 
     async def read(self, paths: Paths, path: str) -> bytes | None:
         return await asyncio.to_thread(writer.read, paths, path)

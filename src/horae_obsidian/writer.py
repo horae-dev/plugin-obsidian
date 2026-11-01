@@ -10,44 +10,57 @@ anything Horae does not own, as a second, independent check (threat model T30):
 - **An owned note** is one whose file name ends in `.assistant.md` (the core's rule, decided
   on the path, which is resolved without following any link). `note.create` needs an owned
   note that does not exist (`note_exists`), `note.append_section` an owned note that exists
-  (`note_missing`) and bytes that only add to it.
+  (`note_missing`) and bytes that only add to it. `note.replace_owned_block` in an owned note
+  must leave the block's marker pair there exactly once, holding no other marker, and keep
+  the rest of the note (a new block only follows the note's bytes).
 - **An owned block** is the core's `<!-- horae:begin <block> -->` … `<!-- horae:end <block> -->`
-  pair. In a note Horae does not own, `note.replace_owned_block` (and `restore`, for
-  `horae undo`) may only change the lines of **one** such block that is already there:
-  the bytes before and after it must be identical, the block must be exactly one well-formed
-  marker pair before and after (`block_ambiguous` otherwise, the core's recogniser and
-  rules: any case, a marker naming the block on a line that is not exactly the canonical
-  marker counts), and the new block holds no other marker. Anything else is `not_owned`,
-  as is creating or removing a note Horae does not own.
+  pair (`<block>`: the core's `BlockId`, `intent_invalid` otherwise). In a note Horae does not
+  own, `note.replace_owned_block` may only change the lines of its block, which must already
+  be there, one well-formed marker pair before and after (`block_ambiguous` otherwise, the
+  core's recogniser and rules: any case, a marker naming the block on a line that is not
+  exactly the canonical marker counts, so does one in a code fence), holding no other
+  marker. `restore` (`horae undo`) does not know which blocks the run replaced: the bytes
+  outside the well-formed pairs (each one pair holding no other marker, in both texts) must
+  be identical, so a run that replaced several blocks, or one block several times, is undone;
+  a malformed marker elsewhere is ignored when the blocks explain the change
+  (`block_ambiguous` when they do not). Anything else is `not_owned`, as is creating or
+  removing a note Horae does not own; so is `horae undo --force` over a note edited outside
+  its blocks (the sink has no `force` flag: manual repair).
 
-**Paths.** The vault is the plugin's single `paths.write` entry as approved in `horae.lock`
-(`vault_unset`, `config_invalid`); the target must also pass `Paths.allowed(..., write=True)`
-(`outside_vault`). A note path is relative and `/`-separated, ends in `.md`, with no empty,
-`.`, `..` or hidden segment (so never `.obsidian/` or `.trash/`), no `\\`, `:` or control
-character, at most 1024 characters and 255 a segment (`path_invalid`). Every component is
-looked up in its directory's listing first: a name that exists only in another case or
-Unicode normalisation form, or that has such a twin, is refused (`path_collision`), since
-macOS, Windows and the phones a synced vault reaches would take them for one file. Then it
-is opened relative to its parent's descriptor with `O_NOFOLLOW`, so a symbolic link
-anywhere below the vault is refused (`symlink`); the note must be a regular file
+**Paths.** The vault is the plugin's single `paths.write` entry as approved in `horae.lock`,
+an absolute path (`vault_unset`, `config_invalid`); the target must also pass
+`Paths.allowed(..., write=True)` (`outside_vault`). A note path is relative and
+`/`-separated, ends in `.md`, with no empty, `.`, `..` or hidden segment (so never
+`.obsidian/` or `.trash/`), no `\\`, `:`, control character or lone surrogate, at most 1024
+characters and 255 UTF-8 bytes a segment (`path_invalid`). Every component is looked up in
+its directory's listing first: a name that exists only in another case or Unicode
+normalisation form, or that has such a twin, is refused (`path_collision`, naming the name
+on disk), since macOS, Windows and the phones a synced vault reaches would take them for one
+file. Then it is opened relative to its parent's descriptor with `O_NOFOLLOW`, so a symbolic
+link anywhere below the vault is refused (`symlink`); the note must be a regular file
 (`not_a_file`) with a single hard link (`hard_link`), at most `MAX_NOTE_BYTES`
-(`note_too_large`).
+(`note_too_large`). Messages escape the paths (`horae_obsidian.vault.safe_path`).
 
 **Writes** follow the core's `LocalFileSink`: compare-and-swap on the SHA-256 of the bytes
 read (`target_changed`, nothing created), then the missing parent directories (`mkdir`
 relative to the parent descriptor, each new entry's directory `fsync`ed), then a temporary
 file `.horae-<12 hex>.tmp` in the note's directory (`O_CREAT | O_EXCL | O_NOFOLLOW`, the
-note's permission bits, or 0644 for a new note), written in full and `fsync`ed; just before
-it is renamed over the note (`os.replace` relative to the directory descriptor) the note's
-device, inode, size and modification time are checked against what was read
-(`target_changed`), then the directory is `fsync`ed. Any failure removes the temporary file
-and leaves the note as it was. A removal renames the note to a private `.horae-<hex>.old`,
-checks what it renamed and unlinks it (or puts it back). Temporary files older than
-`STALE_TMP_S` (left by a crash) are swept from every directory a write touches. As for the
-core, this narrows but does not close the window in which an editor or a sync client
+note's permission bits, or 0644 for a new note), written in full and `fsync`ed. A new note
+is then `os.link`ed in place, which never replaces a note created meanwhile (`note_exists`
+or `target_changed`; a file system without hard links falls back to the rename). An
+existing one is renamed over (`os.replace` relative to the directory descriptor) once its
+device, inode, size and modification time are checked against what was read, and its bytes
+re-read and hashed (a same-size edit within one clock tick), all under a process-wide lock
+(`target_changed`); then the directory is `fsync`ed. Any failure, or an interruption, removes
+the temporary file and leaves the note as it was. A removal renames the note to a private
+`.horae-<hex>.old`, checks what it renamed and unlinks it (or links it back). Temporary files
+older than `STALE_TMP_S` (left by a crash) are swept from every directory a write touches, and
+so are such `.old` files whose bytes are also linked elsewhere (never the only copy). As for
+the core, this narrows but does not close the window in which an editor or a sync client
 writing the same note at that moment loses its write.
 """
 
+import bisect
 import contextlib
 import errno
 import hashlib
@@ -55,17 +68,24 @@ import os
 import re
 import secrets
 import stat
+import threading
 import time
 import unicodedata
+from collections import Counter
 from collections.abc import Callable, Iterable
+from dataclasses import dataclass, field
 from typing import Any
 
 from horae_sdk import Paths, SinkError
 from horae_sdk.protocol import MAX_NOTE_BYTES
 
+from horae_obsidian.vault import safe_path
+
 OWNED_SUFFIX = ".assistant.md"
 MARKER = re.compile(r"horae:(begin|end)(?:\s+([a-z0-9-]+))?", re.IGNORECASE)
 """The core's block-marker recogniser (`horae.apply.notes.MARKER`)."""
+BLOCK_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
+"""A block id (the core's `BlockId`)."""
 NOTE_TYPES = ("note.create", "note.append_section", "note.replace_owned_block")
 STALE_TMP_S = 3600.0
 MAX_PATH = 1024
@@ -75,10 +95,15 @@ _DIR_FLAGS = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
 _FILE_FLAGS = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC
 _TMP_FLAGS = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC
 _NEW_MODE = 0o644
-_TMP = re.compile(r"^\.horae-[0-9a-f]{12}\.tmp$")
+_STALE = re.compile(r"^\.horae-[0-9a-f]{12}\.(tmp|old)$")
 _BAD_CHAR = re.compile(r"[\\:\x00-\x1f\x7f]")
 _CHUNK = 1024 * 1024
 _SAME = ("st_dev", "st_ino", "st_size", "st_mtime_ns")
+_NO_LINK = {errno.EPERM, errno.ENOTSUP, errno.EOPNOTSUPP, errno.EXDEV, errno.EMLINK}
+"""`os.link` errors that mean "this file system makes no hard link": rename instead."""
+_COMMIT = threading.Lock()
+"""Held from the last check of a note to its rename: two writes of this process never both
+pass the check of the same note."""
 
 
 # --- ownership --------------------------------------------------------------------------------
@@ -141,22 +166,109 @@ def _not_owned(path: str, why: str) -> SinkError:
     return SinkError("not_owned", f"{path}: {why}")
 
 
-def _confined(before: bytes, after: bytes, blocks: Iterable[str], path: str) -> None:
-    """Refuse `after` unless it differs from `before` only inside one of `blocks`."""
+@dataclass
+class _Marks:
+    """One text's markers, found in a single pass: per block name its canonical begin and
+    end lines and whether any line names it otherwise; the start of every marker."""
+
+    begins: dict[str, list[tuple[int, int]]] = field(default_factory=dict)
+    ends: dict[str, list[tuple[int, int]]] = field(default_factory=dict)
+    bad: set[str] = field(default_factory=set)
+    starts: list[int] = field(default_factory=list)
+
+    def names(self) -> set[str]:
+        return set(self.begins) | set(self.ends) | self.bad
+
+    def span(self, block: str) -> tuple[int, int] | None:
+        """`block`'s span if it is one well-formed pair holding no other marker."""
+        begins, ends = self.begins.get(block, []), self.ends.get(block, [])
+        if block in self.bad or len(begins) != 1 or len(ends) != 1:
+            return None
+        (start, first), (last, stop) = begins[0], ends[0]
+        if last < first:
+            return None
+        inside = bisect.bisect_left(self.starts, stop) - bisect.bisect_left(self.starts, start)
+        return (start, stop) if inside == 2 else None
+
+
+def _marks(text: str) -> _Marks:
+    found = _Marks()
+    offset = 0
+    for line in _lines(text):
+        stop = offset + len(line)
+        matches = list(MARKER.finditer(line))
+        if matches:
+            found.starts.extend(offset + m.start() for m in matches)
+            bare = line.rstrip("\n").rstrip("\r").strip(" \t")
+            named = Counter((m.group(2) or "").lower() for m in matches if m.group(2))
+            for name, count in named.items():
+                if count != 1 or bare not in (begin_marker(name), end_marker(name)):
+                    found.bad.add(name)
+                else:
+                    edges = found.begins if bare == begin_marker(name) else found.ends
+                    edges.setdefault(name, []).append((offset, stop))
+        offset = stop
+    return found
+
+
+def _outside(text: str, spans: list[tuple[str, tuple[int, int]]]) -> list[str]:
+    """The pieces of `text` around `spans` (in order), each followed by its block's name."""
+    pieces: list[str] = []
+    last = 0
+    for name, (start, stop) in spans:
+        pieces += [text[last:start], name]
+        last = stop
+    pieces.append(text[last:])
+    return pieces
+
+
+def _confined(before: bytes, after: bytes, allowed: set[str] | None, path: str) -> None:
+    """Refuse `after` unless the bytes outside the well-formed block pairs are identical in
+    both texts and every block that changed is in `allowed` (`None`: any) and, in both texts,
+    one well-formed marker pair holding no other marker. A malformed marker elsewhere is
+    ignored when the blocks explain the change, `block_ambiguous` when they do not."""
     if before == after:
         return
     old, new = _text(before, path), _text(after, path)
-    for block in sorted(set(blocks)):
-        was, now = block_span(old, block, path), block_span(new, block, path)
-        if was is None or now is None:
-            continue
-        if old[: was[0]] != new[: now[0]] or old[was[1] :] != new[now[1] :]:
-            continue
-        inside = new[now[0] : now[1]]
-        if len(MARKER.findall(inside)) != 2:
-            raise SinkError("block_ambiguous", f"{path}: the new block {block!r} holds a marker")
+    was, now = _marks(old), _marks(new)
+    names = (was.names() | now.names()) if allowed is None else allowed
+    pairs: list[tuple[str, tuple[int, int], tuple[int, int]]] = []
+    for name in names:
+        then, later = was.span(name), now.span(name)
+        if then is not None and later is not None:
+            pairs.append((name, then, later))
+    old_spans = sorted(((name, then) for name, then, _ in pairs), key=lambda item: item[1])
+    new_spans = sorted(((name, later) for name, _, later in pairs), key=lambda item: item[1])
+    if _outside(old, old_spans) == _outside(new, new_spans):
         return
+    unclear = {
+        name
+        for name in names
+        for marks in (was, now)
+        if name in marks.names() and marks.span(name) is None
+    }
+    if unclear:
+        shown = ", ".join(repr(name) for name in sorted(unclear)[:3])
+        raise SinkError("block_ambiguous", f"{path}: block {shown} is not one marker pair")
     raise _not_owned(path, "Horae does not own this note and the change is not inside a block")
+
+
+def _check_owned_block(before: bytes | None, after: bytes, block: str, path: str) -> None:
+    """A replaced block of an owned note: the pair is there exactly once and holds no other
+    marker; the rest of the note is kept (a new block only follows the note's bytes)."""
+    new = _text(after, path)
+    span = block_span(new, block, path)
+    if span is None or _marks(new).span(block) is None:
+        raise SinkError("block_ambiguous", f"{path}: block {block!r} is not one marker pair")
+    if before is None:
+        return
+    old = _text(before, path)
+    was = block_span(old, block, path)
+    if was is None:
+        if not new.startswith(old) or span[1] != len(new):
+            raise _not_owned(path, "a new block may only follow the note's bytes")
+    elif old[: was[0]] != new[: span[0]] or old[was[1] :] != new[span[1] :]:
+        raise _not_owned(path, "the bytes outside the block must be kept")
 
 
 def check_apply(intent: dict[str, Any], before: bytes | None, after: bytes) -> None:
@@ -177,30 +289,30 @@ def check_apply(intent: dict[str, Any], before: bytes | None, after: bytes) -> N
             raise _not_owned(path, "an appended section must leave the note before it intact")
     elif kind == "note.replace_owned_block":
         block = intent.get("block")
-        if not isinstance(block, str):
-            raise SinkError("intent_invalid", "note.replace_owned_block needs its block")
-        if not owned:
-            if before is None:
-                raise _not_owned(path, "Horae does not own this note and it does not exist")
-            _confined(before, after, [block], path)
+        if not isinstance(block, str) or not BLOCK_ID.fullmatch(block):
+            raise SinkError("intent_invalid", "note.replace_owned_block needs a valid block id")
+        if owned:
+            _check_owned_block(before, after, block, path)
+            return
+        if before is None:
+            raise _not_owned(path, "Horae does not own this note and it does not exist")
+        old, new = _text(before, path), _text(after, path)
+        block_span(old, block, path)  # the core refuses these too: never written
+        block_span(new, block, path)
+        _confined(before, after, {block}, path)
     else:
         raise SinkError("not_supported", f"the vault sink applies no {kind!s:.40} intent")
 
 
 def check_restore(path: str, before: bytes | None, after: bytes | None) -> None:
-    """Refuse an undo that would create, remove or change, outside one block, a note Horae
-    does not own (the journal does not say which block: any block named in the note)."""
+    """Refuse an undo that would create, remove or change, outside its blocks, a note Horae
+    does not own (the journal does not say which blocks a run replaced: any of them may
+    change, each one well-formed pair before and after)."""
     if is_owned(path) or before == after:
         return
     if before is None or after is None:
         raise _not_owned(path, "Horae does not own this note: it neither creates nor removes it")
-    names = {
-        (match.group(2) or "").lower()
-        for text in (_text(before, path), _text(after, path))
-        for match in MARKER.finditer(text)
-        if match.group(2)
-    }
-    _confined(before, after, names, path)
+    _confined(before, after, None, path)
 
 
 # --- paths --------------------------------------------------------------------------------------
@@ -210,31 +322,45 @@ def note_parts(path: object) -> list[str]:
     """The segments of a note path (`path_invalid` if it is not one)."""
     if not isinstance(path, str) or not 0 < len(path) <= MAX_PATH:
         raise SinkError("path_invalid", "not a note path")
+    try:
+        path.encode("utf-8")
+    except UnicodeEncodeError:  # a lone surrogate: no file name
+        raise SinkError("path_invalid", "not a note path (not UTF-8)") from None
     parts = path.split("/")
     if (
         not path.endswith(".md")
         or _BAD_CHAR.search(path)
-        or any(not part or part.startswith(".") or len(part) > MAX_SEGMENT for part in parts)
+        or any(
+            not part or part.startswith(".") or len(part.encode("utf-8")) > MAX_SEGMENT
+            for part in parts
+        )
     ):
         raise SinkError("path_invalid", "not a note path (relative, no hidden segment, .md)")
     return parts
 
 
 def vault_of(paths: Paths) -> str:
-    """The vault: the single approved `paths.write` entry."""
+    """The vault: the single approved `paths.write` entry, an absolute path."""
     if not paths.write:
         raise SinkError("vault_unset", "no paths.write entry approved for the obsidian plugin")
     if len(paths.write) != 1:
         raise SinkError("config_invalid", "the obsidian plugin needs exactly one paths.write")
-    return paths.write[0]
+    vault = paths.write[0]
+    if not os.path.isabs(vault):
+        raise SinkError(
+            "config_invalid",
+            f"the obsidian plugin's paths.write must be an absolute path, not {safe_path(vault)}",
+        )
+    return vault
 
 
-def _target(paths: Paths, path: object) -> tuple[str, list[str]]:
+def _target(paths: Paths, path: object) -> tuple[str, list[str], str]:
+    """The vault, the note's segments and the note path escaped for messages."""
     parts = note_parts(path)
     vault = vault_of(paths)
     if paths.allowed(os.path.join(vault, *parts), write=True) is None:
         raise SinkError("outside_vault", "the note is not inside the approved vault")
-    return vault, parts
+    return vault, parts, safe_path("/".join(parts))
 
 
 def _key(name: str) -> str:
@@ -243,19 +369,29 @@ def _key(name: str) -> str:
 
 def _lookup(dir_fd: int, name: str, path: str) -> bool:
     """Whether `name` exists in `dir_fd` under exactly that name; `path_collision` when the
-    listing holds it in another case or normalisation form, or holds a twin of it."""
+    listing holds it in another case or normalisation form, or holds a twin of it.
+
+    The listing is needed to see twins; each entry costs one comparison: an ASCII name is
+    its own NFC form and its case fold is `lower()`, so only other names are normalised."""
     try:
         names = os.listdir(dir_fd)
     except OSError as error:
         raise SinkError("unreadable", f"{path}: a directory cannot be listed") from error
     key = _key(name)
-    twins = [entry for entry in names if entry != name and _key(entry) == key]
-    if twins:
-        raise SinkError(
-            "path_collision",
-            f"{path}: the vault holds this name in another case or Unicode form",
-        )
-    return name in names
+    size = len(key)
+    found = False
+    for entry in names:
+        if entry == name:
+            found = True
+        elif (
+            (len(entry) == size and entry.lower() == key) if entry.isascii() else _key(entry) == key
+        ):
+            raise SinkError(
+                "path_collision",
+                f'{path}: the vault holds "{safe_path(entry)}" for this name (another case or'
+                " Unicode form); rename it on disk or use that exact name",
+            )
+    return found
 
 
 def _is_link(name: str, dir_fd: int) -> bool:
@@ -299,6 +435,11 @@ def _read_at(dir_fd: int, name: str, path: str) -> tuple[bytes | None, os.stat_r
     """The bytes and `fstat` of note `name` in `dir_fd` (`None`s: it does not exist)."""
     if not _lookup(dir_fd, name, path):
         return None, None
+    return _read_file(dir_fd, name, path)
+
+
+def _read_file(dir_fd: int, name: str, path: str) -> tuple[bytes, os.stat_result]:
+    """The bytes and `fstat` of the regular, single-link file `name` in `dir_fd`."""
     fd = _open(name, _FILE_FLAGS, dir_fd, path)
     try:
         info = os.fstat(fd)
@@ -350,8 +491,7 @@ def identity(paths: Paths) -> str:
 
 def read(paths: Paths, path: object) -> bytes | None:
     """The note's bytes (`None`: it does not exist). Side-effect free."""
-    vault, parts = _target(paths, path)
-    shown = "/".join(parts)
+    vault, parts, shown = _target(paths, path)
     fds = [_open_vault(vault)]
     try:
         if _walk(parts, shown, fds):
@@ -362,10 +502,10 @@ def read(paths: Paths, path: object) -> bytes | None:
 
 
 def parent_exists(paths: Paths, path: object) -> bool:
-    vault, parts = _target(paths, path)
+    vault, parts, shown = _target(paths, path)
     fds = [_open_vault(vault)]
     try:
-        return not _walk(parts, "/".join(parts), fds)
+        return not _walk(parts, shown, fds)
     finally:
         _close(fds)
 
@@ -382,8 +522,7 @@ def put(
     """Compare-and-swap: if note `path` has SHA-256 `expected` (`None`: missing) and
     `check(before)` passes, make it hold `after` (`None`: remove it). `creating`: an
     existing note is `note_exists` rather than `target_changed`."""
-    vault, parts = _target(paths, path)
-    shown = "/".join(parts)
+    vault, parts, shown = _target(paths, path)
     if after is not None and len(after) > MAX_NOTE_BYTES:
         raise _too_large(shown)
     fds = [_open_vault(vault)]
@@ -402,7 +541,7 @@ def put(
             return
         _make_dirs(missing, shown, fds)
         _sweep(fds[-1])
-        _replace(fds[-1], parts[-1], shown, after, seen)
+        _replace(fds[-1], parts[-1], shown, after, (seen, expected), creating=creating)
     finally:
         _close(fds)
 
@@ -441,35 +580,79 @@ def _make_dirs(missing: list[str], path: str, fds: list[int]) -> None:
 
 
 def _sweep(dir_fd: int) -> None:
-    """Remove the temporary files a crash left in `dir_fd` (older than `STALE_TMP_S`)."""
+    """Remove what a crash left in `dir_fd` for more than `STALE_TMP_S`: temporary files,
+    and `.old` names of a removal whose file is also linked elsewhere (a put-back whose last
+    unlink failed). An `.old` file with a single link may be the only copy of a note (a
+    put-back that failed): it is kept."""
     with contextlib.suppress(OSError):
-        names = [name for name in os.listdir(dir_fd) if _TMP.fullmatch(name)]
+        names = [name for name in os.listdir(dir_fd) if _STALE.fullmatch(name)]
         cutoff = time.time() - STALE_TMP_S
         for name in names:
             with contextlib.suppress(OSError):
                 info = os.stat(name, dir_fd=dir_fd, follow_symlinks=False)
-                if stat.S_ISREG(info.st_mode) and info.st_mtime < cutoff:
+                if not stat.S_ISREG(info.st_mode):
+                    continue
+                if name.endswith(".old") and (
+                    info.st_nlink < 2 or max(info.st_mtime, info.st_ctime) >= cutoff
+                ):
+                    continue
+                if info.st_mtime < cutoff:
                     os.unlink(name, dir_fd=dir_fd)
 
 
-def _unchanged(dir_fd: int, name: str, seen: os.stat_result | None) -> bool:
-    """Whether `name` is still the file `seen` (`None`: still missing)."""
+def _unchanged(dir_fd: int, name: str, seen: os.stat_result | None, digest: str | None) -> bool:
+    """Whether `name` is still the file `seen` with SHA-256 `digest` (`None`: still missing):
+    the same device, inode, size and modification time, and the same bytes (re-read: a
+    same-size edit within the clock's resolution keeps the rest)."""
     try:
         now = os.stat(name, dir_fd=dir_fd, follow_symlinks=False)
     except FileNotFoundError:
         return seen is None
-    return seen is not None and all(getattr(now, f) == getattr(seen, f) for f in _SAME)
+    if seen is None or not all(getattr(now, f) == getattr(seen, f) for f in _SAME):
+        return False
+    try:
+        return sha256(_read_file(dir_fd, name, name)[0]) == digest
+    except SinkError:
+        return False
 
 
-def _replace(dir_fd: int, name: str, path: str, data: bytes, seen: os.stat_result | None) -> None:
-    """Write `data` to a temporary file next to `name`, `fsync` it, and rename it over `name`
-    if `name` is still the file `seen` (`None`: still missing); then `fsync` the directory."""
+def _link_new(dir_fd: int, tmp: str, name: str, path: str, *, creating: bool) -> bool:
+    """Give the temporary file the missing note's name, never over a note created meanwhile
+    (`os.link` fails if `name` exists); `False` if the file system makes no hard link."""
+    try:
+        os.link(tmp, name, src_dir_fd=dir_fd, dst_dir_fd=dir_fd, follow_symlinks=False)
+    except FileExistsError:
+        if creating:
+            raise SinkError("note_exists", f"{path} was created meanwhile") from None
+        raise _changed(path) from None
+    except OSError as error:
+        if error.errno in _NO_LINK:
+            return False
+        raise
+    return True
+
+
+def _replace(
+    dir_fd: int,
+    name: str,
+    path: str,
+    data: bytes,
+    was: tuple[os.stat_result | None, str | None],
+    *,
+    creating: bool = False,
+) -> None:
+    """Write `data` to a temporary file next to `name` and `fsync` it; then, if `name` is
+    still the file `seen` with SHA-256 `digest` (`was`; `None`: still missing), link it as
+    the missing note or rename it over `name`; then `fsync` the directory. The temporary
+    file never outlives the call, whatever stops it."""
+    seen, digest = was
     mode = _NEW_MODE if seen is None else stat.S_IMODE(seen.st_mode)
     tmp = _hidden(".tmp")
     try:
         fd = os.open(tmp, _TMP_FLAGS, 0o600, dir_fd=dir_fd)
     except OSError as error:
         raise _write_error(path, error) from None
+    renamed = False
     try:
         try:
             os.fchmod(fd, mode)
@@ -479,15 +662,20 @@ def _replace(dir_fd: int, name: str, path: str, data: bytes, seen: os.stat_resul
             os.fsync(fd)
         finally:
             os.close(fd)
-        if not _unchanged(dir_fd, name, seen):
-            raise _changed(path)
-        os.replace(tmp, name, src_dir_fd=dir_fd, dst_dir_fd=dir_fd)
-    except (OSError, SinkError) as error:
-        with contextlib.suppress(OSError):
-            os.unlink(tmp, dir_fd=dir_fd)
-        if isinstance(error, SinkError):
-            raise
+        with _COMMIT:
+            if seen is None and _link_new(dir_fd, tmp, name, path, creating=creating):
+                pass  # linked: the temporary name is removed below
+            elif not _unchanged(dir_fd, name, seen, digest):
+                raise _changed(path)
+            else:
+                os.replace(tmp, name, src_dir_fd=dir_fd, dst_dir_fd=dir_fd)
+                renamed = True
+    except OSError as error:
         raise _write_error(path, error) from None
+    finally:
+        if not renamed:
+            with contextlib.suppress(OSError):
+                os.unlink(tmp, dir_fd=dir_fd)
     _sync(dir_fd)
 
 
@@ -495,30 +683,40 @@ def _remove(dir_fd: int, name: str, path: str, expected: str | None) -> None:
     """Remove `name` if it holds bytes of SHA-256 `expected`: rename it to a private name,
     check what was renamed, then unlink it (or put it back, never over a new note)."""
     hidden = _hidden(".old")
-    try:
-        os.rename(name, hidden, src_dir_fd=dir_fd, dst_dir_fd=dir_fd)
-    except FileNotFoundError:
-        raise _changed(path) from None
-    except OSError as error:
-        raise _write_error(path, error) from None
-    try:
-        if sha256(_read_at(dir_fd, hidden, path)[0]) != expected:
-            raise _changed(path)
-        os.unlink(hidden, dir_fd=dir_fd)
-    except (OSError, SinkError) as error:
+    with _COMMIT:
         try:
-            os.link(hidden, name, src_dir_fd=dir_fd, dst_dir_fd=dir_fd, follow_symlinks=False)
+            os.rename(name, hidden, src_dir_fd=dir_fd, dst_dir_fd=dir_fd)
+        except FileNotFoundError:
+            raise _changed(path) from None
+        except OSError as error:
+            raise _write_error(path, error) from None
+        try:
+            if sha256(_read_file(dir_fd, hidden, path)[0]) != expected:
+                raise _changed(path)
             os.unlink(hidden, dir_fd=dir_fd)
-        except OSError:
-            message = f"{path} changed during the undo; what was there is kept as {hidden}"
-            raise SinkError("target_changed", message) from None
-        if isinstance(error, SinkError):
-            raise
-        raise _write_error(path, error) from None
+        except (OSError, SinkError) as error:
+            _put_back(dir_fd, hidden, name, path)
+            if isinstance(error, SinkError):
+                raise
+            raise _write_error(path, error) from None
     _sync(dir_fd)
 
 
+def _put_back(dir_fd: int, hidden: str, name: str, path: str) -> None:
+    """Undo the rename of `name` to `hidden`, never over a file created at `name` meanwhile
+    (the core's `_put_back`). Once linked back, failing to unlink `hidden` loses nothing:
+    the sweep removes it later."""
+    try:
+        os.link(hidden, name, src_dir_fd=dir_fd, dst_dir_fd=dir_fd, follow_symlinks=False)
+    except OSError:
+        message = f"{path} changed during the undo; what was there is kept as {hidden}"
+        raise SinkError("target_changed", message) from None
+    with contextlib.suppress(OSError):
+        os.unlink(hidden, dir_fd=dir_fd)
+
+
 __all__ = [
+    "BLOCK_ID",
     "MARKER",
     "NOTE_TYPES",
     "OWNED_SUFFIX",

@@ -418,3 +418,24 @@ def test_a_long_line_parses_in_linear_time() -> None:
     [task] = parse(line.encode()).tasks
     assert time.monotonic() - started < 1
     assert task.due == date(2026, 10, 22)
+
+
+@pytest.mark.parametrize("eol", ["\n", "\r\n"])
+def test_owned_blocks_are_the_cores_canonical_markers_in_any_line_ending(eol: str) -> None:
+    """The writer's (and the core's) canonical marker, whatever the note's line ending
+    (`Line.text` has no `\\r`). A non-canonical marker (upper case, two spaces) opens no
+    block here, where the writer and the core refuse the note (`block_ambiguous`). One
+    difference: the parser reads after a BOM, so a marker on line 1 of a BOM note opens a
+    block here, while the core and the writer refuse it (README)."""
+    lines = [
+        "\t<!-- horae:begin brief --> ",
+        "- [ ] inside",
+        "<!-- horae:end brief -->",
+        "- [ ] after",
+        "<!-- HORAE:BEGIN brief -->",
+        "- [ ] not canonical",
+    ]
+    document = parse(eol.join(lines).encode() + eol.encode(), "n.md")
+    assert [task.owned_block for task in document.tasks] == ["brief", None, None]
+    bom = parse(b"\xef\xbb\xbf<!-- horae:begin brief -->\n- [ ] x\n", "n.md")
+    assert bom.tasks[0].owned_block == "brief"  # the parser reads after the BOM
