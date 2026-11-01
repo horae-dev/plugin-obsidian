@@ -5,6 +5,7 @@
 the sink only writes them, and refuses those that would touch what Horae does not own."""
 
 import asyncio
+import errno
 import hashlib
 import os
 import stat
@@ -785,7 +786,7 @@ def test_a_new_note_is_linked_in_place_and_never_clobbers(
     assert leftovers(vault / "Daily") == []
 
 
-@pytest.mark.parametrize("code", [1, 45, 18])  # EPERM, ENOTSUP / EOPNOTSUPP, EXDEV
+@pytest.mark.parametrize("code", [errno.EPERM, errno.ENOTSUP, errno.EOPNOTSUPP, errno.EXDEV])
 def test_a_file_system_without_hard_links_falls_back_to_rename(
     vault: Path, monkeypatch: pytest.MonkeyPatch, code: int
 ) -> None:
@@ -800,7 +801,7 @@ def test_a_file_system_without_hard_links_falls_back_to_rename(
 
 def test_a_failing_link_is_unwritable(vault: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     def broken(*args: Any, **kwargs: Any) -> None:
-        raise OSError(5, "Input/output error")
+        raise OSError(errno.EIO, "Input/output error")
 
     monkeypatch.setattr(os, "link", broken)
     assert refused(vault, create(), b"x\n", None) == "unwritable"
@@ -871,7 +872,7 @@ def test_a_failed_put_back_keeps_the_bytes_under_the_old_name(
         real_rename(src, dst, **kwargs)
 
     def no_link(*args: Any, **kwargs: Any) -> None:
-        raise OSError(5, "Input/output error")
+        raise OSError(errno.EIO, "Input/output error")
 
     monkeypatch.setattr(os, "rename", swapped)
     monkeypatch.setattr(os, "link", no_link)
@@ -899,7 +900,7 @@ def test_a_failing_close_of_the_temporary_file_leaves_the_note_whole(
         real_close(fd)
         if fd in temporary:
             temporary.discard(fd)
-            raise OSError(28, "No space left on device")  # NFS reports it on close
+            raise OSError(errno.ENOSPC, "No space left on device")  # NFS reports it on close
 
     monkeypatch.setattr(os, "open", spy_open)
     monkeypatch.setattr(os, "close", failing_close)
