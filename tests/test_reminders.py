@@ -612,7 +612,8 @@ def test_the_plugin_proposes_the_pushes() -> None:
         "body": "Call",
         "key": intent["key"],
     }
-    assert intent["key"].startswith("rem:") and intent["key"].endswith(f":{TODAY}T14:30")
+    assert intent["key"].startswith("rem:")
+    assert intent["key"].endswith(f":{TODAY}T14:30")
     assert result.data["reminders"] == 1
 
 
