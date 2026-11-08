@@ -458,20 +458,29 @@ def _digest(
     if left:
         lines.append(f"…and {left} more")
     lines += footer
-    return notify_push("\n".join(lines), title=f"Today, {day.isoformat()}")
+    return notify_push(
+        "\n".join(lines), title=f"Today, {day.isoformat()}", key=f"digest:{day.isoformat()}"
+    )
+
+
+def _digest_of(key: str, length: int) -> str:
+    return hashlib.sha256(key.encode("utf-8", "surrogatepass")).hexdigest()[:length]
 
 
 def _suffix(key: str) -> str:
-    return " · " + hashlib.sha256(key.encode("utf-8", "surrogatepass")).hexdigest()[:4]
+    return " · " + _digest_of(key, 4)
 
 
-def _distinct(pushes: list[tuple[str, str, str]]) -> list[dict[str, Any]]:
-    """`(title, body, key)` as intents; a body whose title and text another push of the set
-    shares gets its key's stable suffix."""
-    seen = Counter((title, body) for title, body, _ in pushes)
+def _distinct(pushes: list[tuple[str, str, str, str]]) -> list[dict[str, Any]]:
+    """`(title, body, task key, push key)` as intents; a body whose title and text another
+    push of the set shares gets its task key's stable suffix. The push key is the core's
+    stable `key` (decision 57): the same reminder proposed by many runs is sent once."""
+    seen = Counter((title, body) for title, body, _, _ in pushes)
     return [
-        notify_push(body + _suffix(key) if seen[(title, body)] > 1 else body, title=title)
-        for title, body, key in pushes
+        notify_push(
+            body + _suffix(key) if seen[(title, body)] > 1 else body, title=title, key=push_key
+        )
+        for title, body, key, push_key in pushes
     ]
 
 
@@ -519,6 +528,8 @@ def reminders(params: Mapping[str, Any], input: Any) -> tuple[dict[str, Any], li
             f"⏰ {(t.reminder_day or t.due or today).isoformat()} {t.reminder_time:%H:%M}",
             t.description,
             t.key,
+            f"rem:{_digest_of(t.key, 12)}:{(t.reminder_day or t.due or today).isoformat()}"
+            f"T{t.reminder_time:%H:%M}",
         )
         for t in due_now
     ]
@@ -538,7 +549,16 @@ def reminders(params: Mapping[str, Any], input: Any) -> tuple[dict[str, Any], li
     if nudge_day is not None:
         yesterday = nudge_day - timedelta(days=1)
         nudged = [t for t in tasks if not t.snoozed and t.due == yesterday][: p.max_overdue]
-    nudges = [(f"Overdue: due {t.due.isoformat()}", t.description, t.key) for t in nudged if t.due]
+    nudges = [
+        (
+            f"Overdue: due {t.due.isoformat()}",
+            t.description,
+            t.key,
+            f"od:{_digest_of(t.key, 12)}:{t.due.isoformat()}",
+        )
+        for t in nudged
+        if t.due
+    ]
 
     intents = _distinct(singles)
     if digest is not None:
