@@ -7,7 +7,7 @@ license = "Apache-2.0"
 license-files = ["LICENSE"]
 requires-python = ">=3.12"
 dependencies = [
-    "horae-sdk>=0.1,<0.2",
+    "horae-sdk>=0.2,<0.4",
 ]
 
 [build-system]

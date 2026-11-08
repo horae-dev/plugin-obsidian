@@ -29,12 +29,14 @@ plugin's `⏰ YYYY-MM-DD HH:MM` and `⏰ YYYY-MM-DD` are read too. Not supported
 global filter and Dataview inline fields (`[due:: …]` stays text).
 
 **Ids.** `Task.key` is a stable fingerprint (`horae_sdk.intents.fingerprint`, the
-`task.update_status` alphabet): the Tasks `🆔` id when there is one (vault-wide), else the
-block id (per note), else a digest of the note path and the description (both NFC, runs of
-spaces and tabs as one space), with its occurrence among identical descriptions of the note
-(every task counts, whatever its key). Keys that collide in a note are flagged
-(`Task.key_unique` false, `Document.duplicate_keys`); `vault.scan` does the same across the
-vault. The README's "Task identity" section lists which edits change a key.
+`task.update_status` alphabet): the Tasks `🆔` id when there is one (vault-wide), else
+Horae's own block id `^h-<12 hex>` (vault-wide: the link back to the task Horae wrote, see
+`horae_block`), else another block id (per note), else a digest of the note path and the
+description (both NFC, runs of spaces and tabs as one space), with its occurrence among
+identical descriptions of the note (every task counts, whatever its key). Keys that collide
+in a note are flagged (`Task.key_unique` false, `Document.duplicate_keys`); `vault.scan` does
+the same across the notes it read. The README's "Task identity" section lists which edits
+change a key.
 
 **Bounds** (vault text is untrusted, threat model T02): every scan is linear in the line's
 length; a line longer than `MAX_LINE_BYTES` and every line after the first `MAX_LINES` are
@@ -135,6 +137,12 @@ MAX_LINES = 100_000
 """Lines past this many are kept byte-exact as plain lines (`too_many_lines`)."""
 MAX_ID = 128
 """A longer 🆔, ⛔ or `^block-id` value is text, not an id."""
+HORAE_BLOCK = re.compile(r"h-[0-9a-f]{12}")
+"""Horae's block id (`horae_sdk.tasks.task_block_id`: `h-` and 12 hex digits of the SHA-256
+of the source fingerprint), written last on every task line Horae creates."""
+CANCELLED = "❌"
+VAULT_SCOPES = (f"{NAME}:id:", f"{NAME}:horae:")
+"""Key prefixes whose scope is the whole vault (the others name their note)."""
 
 _BREAK = re.compile(rb"\r\n|\r|\n")
 _LINE_END = re.compile(r"\r\n|\r|\n")
@@ -363,7 +371,9 @@ class Reminder:
 
 
 class RecurringTaskError(ValueError):
-    """`Task.tick` on a recurring task: what completing one means is decided in #4."""
+    """`Task.tick` or `Task.cancel` on a recurring task. Horae never closes one: closing it
+    outside Obsidian ends the recurrence (the Tasks plugin only creates the next occurrence
+    when the task is ticked in Obsidian). Snooze it, or tick it in Obsidian."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -407,7 +417,30 @@ class Task:
     """Stable fingerprint (see the module docstring)."""
     key_unique: bool = True
     """False when another task of the note (or, after `vault.scan`, of the vault) has the
-    same key: a source must not act on it (#4 withholds and reports it)."""
+    same key: a source must not act on it (`obsidian.open_tasks` withholds it)."""
+    source_fingerprint: str | None = None
+    """The fingerprint of the `task.create` this line was written for, when the line holds
+    Horae's block id and the plugin's index maps it (`horae_obsidian.index`, checked: the
+    block id is the hash of this fingerprint). Set by the source and the sink, never by
+    `parse`."""
+
+    @property
+    def horae_block(self) -> str | None:
+        """The block id when it is Horae's (`^h-<12 hex>`), else `None`."""
+        block = self.block_id
+        return block if block is not None and HORAE_BLOCK.fullmatch(block) else None
+
+    @property
+    def vault_scoped(self) -> bool:
+        """Whether the key names the task in the whole vault (🆔 or Horae's block id): its
+        uniqueness is only known after a complete scan (`vault.Scan.keys_complete`)."""
+        return self.key.startswith(VAULT_SCOPES)
+
+    @property
+    def is_open(self) -> bool:
+        """`todo`, `in_progress` or `custom`: the Tasks plugin treats a status character it
+        does not know as a to-do, and so does Horae."""
+        return self.status not in ("done", "cancelled")
 
     @property
     def body(self) -> str:
@@ -520,34 +553,84 @@ class Task:
 
     def tick(self, done_on: date) -> str:
         """The line marked done on `done_on`: status `x` and ` ✅ YYYY-MM-DD` after the last
-        field (before trailing tags and the block id); an existing valid ✅ date is replaced.
-        `RecurringTaskError` on a recurring task (#4 decides what completing one means)."""
+        field (before trailing tags and the block id); an existing valid ✅ date is replaced
+        and a valid ❌ date removed. `RecurringTaskError` on a recurring task (see there)."""
+        return self._close("x", "done", "cancelled", DONE, done_on)
+
+    def cancel(self, cancelled_on: date) -> str:
+        """The line marked cancelled on `cancelled_on`: status `-` and ` ❌ YYYY-MM-DD` (a
+        valid ✅ date removed), as `tick` does it. `RecurringTaskError` on a recurring
+        task."""
+        return self._close("-", "cancelled", "done", CANCELLED, cancelled_on)
+
+    def _close(self, char: str, kind: Kind, other: Kind, signifier: str, day: date) -> str:
         if self.recurrence is not None:
-            raise RecurringTaskError("completing a recurring task is not supported yet")
-        stamp = f"{DONE} {done_on.isoformat()}"
-        text = self.with_status("x")
-        done = [f for f in self.fields if f.kind == "done" and f.valid]
-        if len(done) > 1:
-            raise ValueError("the task has more than one ✅ date")
-        if done:
-            return text[: done[0].start] + stamp + text[done[0].end :]
-        at = self.fields_end
-        lead = "" if at and text[at - 1] in " \t" else " "
-        trail = " " if at < len(text) and not text[at].isspace() else ""
-        return text[:at] + lead + stamp + trail + text[at:]
+            raise RecurringTaskError(
+                "Horae never closes a recurring task (it would end the recurrence):"
+                " tick it in Obsidian"
+            )
+        found = [f for f in self.fields if f.kind == kind and f.valid]
+        if len(found) > 1:
+            raise ValueError(f"the task has more than one {signifier} date")
+        stamp = f"{signifier} {day.isoformat()}"
+        if found:
+            return self._edit(char, (other,), replace=(found[0], stamp))
+        return self._edit(char, (other,), insert=(self.fields_end, stamp))
 
     def untick(self) -> str:
         """The line marked to do: status ` ` and every valid ✅ date removed (with the spaces
         before it). Unknown fields are kept."""
-        text = self.with_status(" ")
+        return self._edit(" ", ("done",))
+
+    def reopen(self) -> str:
+        """The line marked to do: status ` ` and every valid ✅ and ❌ date removed."""
+        return self._edit(" ", ("done", "cancelled"))
+
+    def snooze(self, value: str) -> str:
+        """The line with its reminder set to `value` (`HH:MM`, `YYYY-MM-DD` or
+        `YYYY-MM-DD HH:MM`): every valid ⏰ field is removed and `⏰ <value>` goes before the
+        first other field (Horae's order: after the description, before the Tasks dates). A
+        closed task (done, cancelled) is reopened (its ✅ / ❌ date removed); any other status
+        is kept."""
+        if not _SHAPES["reminder"].fullmatch(value) or not _valid("reminder", value):
+            raise ValueError("a reminder is HH:MM, YYYY-MM-DD or YYYY-MM-DD HH:MM")
+        kinds: tuple[Kind, ...] = ("reminder",)
+        if not self.is_open:
+            kinds = ("reminder", "done", "cancelled")
+        kept = [f for f in self.fields if not (f.valid and f.kind in kinds)]
+        at = kept[0].start if kept else self.fields_end
+        char = self.status_char if self.is_open else " "
+        return self._edit(char, kinds, insert=(at, f"{REMINDER} {value}"))
+
+    def _edit(
+        self,
+        char: str,
+        remove: tuple[Kind, ...],
+        *,
+        insert: tuple[int, str] | None = None,
+        replace: tuple[Field, str] | None = None,
+    ) -> str:
+        """The line with status `char`, the valid fields of the kinds in `remove` dropped
+        (with the spaces and tabs before each), and `insert` (offset in the original line,
+        text) or `replace` (field, text) applied: one pass from the end of the line."""
+        text = self.with_status(char)
         floor = self.status_offset + 2
-        for found in reversed(self.fields):
-            if found.kind != "done" or not found.valid:
-                continue
-            start = found.start
-            while start > floor and text[start - 1] in " \t":
-                start -= 1
-            text = text[:start] + text[found.end :]
+        edits: list[tuple[int, int, str]] = []
+        for found in self.fields:
+            if found.valid and found.kind in remove:
+                start = found.start
+                while start > floor and text[start - 1] in " \t":
+                    start -= 1
+                edits.append((start, found.end, ""))
+        if replace is not None:
+            edits.append((replace[0].start, replace[0].end, replace[1]))
+        if insert is not None:
+            at, stamp = insert
+            lead = "" if at and text[at - 1] in " \t" else " "
+            trail = " " if at < len(text) and not text[at].isspace() else ""
+            edits.append((at, at, lead + stamp + trail))
+        for start, end, new in sorted(edits, key=lambda e: (e[0], e[1]), reverse=True):
+            text = text[:start] + new + text[end:]
         return text
 
     def to_json(self) -> dict[str, Any]:
@@ -583,6 +666,8 @@ class Task:
             "depends_on": list(self.depends_on),
             "on_completion": self.on_completion,
             "block_id": self.block_id,
+            "horae_block": self.horae_block,
+            "source_fingerprint": self.source_fingerprint,
             "depth": self.depth,
             "parent": self.parent,
             "heading": json_safe(self.heading) if self.heading is not None else None,
@@ -877,8 +962,10 @@ def _digest(description: str) -> str:
 
 def _key(path: str, ids: list[str], block_id: str | None, digest: str, occurrence: int) -> str:
     """The task's fingerprint; a part `fingerprint` refuses falls back to the digest key."""
+    horae = block_id is not None and HORAE_BLOCK.fullmatch(block_id) is not None
     for parts in (
         ("id", ids[0]) if ids else None,
+        ("horae", block_id) if horae and block_id is not None else None,
         ("block", path, block_id) if block_id is not None else None,
         ("task", path, digest, str(occurrence)),
     ):
@@ -1069,6 +1156,7 @@ def _analyse(
 
 
 __all__ = [
+    "HORAE_BLOCK",
     "ID",
     "MAX_FIELDS",
     "MAX_ID",
@@ -1078,6 +1166,7 @@ __all__ = [
     "REMINDER",
     "SIGNIFIERS",
     "STATUSES",
+    "VAULT_SCOPES",
     "Document",
     "Field",
     "Line",

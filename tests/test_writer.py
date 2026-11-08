@@ -219,8 +219,8 @@ def test_a_user_note_that_is_not_utf8_is_refused(vault: Path) -> None:
 
 def test_other_intents_and_missing_bytes_are_refused(vault: Path) -> None:
     sink = VaultSink([TOOL])
-    with pytest.raises(SinkError, match="note intents only"):
-        asyncio.run(sink.apply(ApplyRequest(paths(vault), {"type": "task.create"})))
+    with pytest.raises(SinkError, match="note and task intents only"):
+        asyncio.run(sink.apply(ApplyRequest(paths(vault), {"type": "http.post"})))
     with pytest.raises(SinkError) as raised:
         asyncio.run(sink.apply(ApplyRequest(paths(vault), create())))
     assert raised.value.kind == "content_missing"
