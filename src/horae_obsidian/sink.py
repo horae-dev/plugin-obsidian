@@ -7,7 +7,9 @@ sink operations `obsidian.read`, `.apply`, `.restore`, `.parent_exists` and `.id
 the bytes; `apply` writes exactly those with `horae_obsidian.writer` (owned files and blocks
 only, atomic, compare-and-swap) and returns their digest. A `task.*` intent (routed by a
 `mode: tasks` entry) is applied by `horae_obsidian.tasksink`: one line changed, or one line
-appended to an owned note. Every file-system call runs in a worker thread.
+appended to the Tasks writer's note. The Tasks writer's notes (`provenance`) are
+writer-exclusive: a note intent on one, or its undo, is refused (`tasks_note`). Every
+file-system call runs in a worker thread.
 """
 
 import asyncio
@@ -51,6 +53,7 @@ class VaultSink(Sink):
             raise SinkError("content_missing", "the core sent no note bytes")
         path = intent.get("path")
         writer.note_parts(path)
+        await asyncio.to_thread(tasksink.refuse_tasks_note, request.paths, path)
 
         def check(before: bytes | None) -> None:
             writer.check_apply(intent, before, content)
@@ -80,4 +83,5 @@ class VaultSink(Sink):
         def check(before: bytes | None) -> None:
             writer.check_restore(path, before, content)
 
+        await asyncio.to_thread(tasksink.refuse_tasks_note, paths, path)
         await asyncio.to_thread(writer.put, paths, path, content, expected_sha256, check)

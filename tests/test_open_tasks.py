@@ -39,8 +39,8 @@ def write(root: Path, notes: dict[str, str]) -> Path:
     return root
 
 
-def source(root: Path, limit: int = 500) -> dict[str, Any]:
-    return open_tasks(Paths(write=(str(root),)), limit=limit)
+def source(root: Path, limit: int = 500, **options: Any) -> dict[str, Any]:
+    return open_tasks(Paths(write=(str(root),)), limit=limit, **options)
 
 
 # --- the block id and the reminder ----------------------------------------------------------
@@ -204,8 +204,12 @@ def test_open_tasks_returns_open_tasks_with_stable_keys(tmp_path: Path) -> None:
         "Draft",
         "Ship #work",
         "Review [link](https://code.example.org/pr/42)",
-        "Forwarded",
     ]
+    # a theme's status is not open unless listed (counted, never silently dropped)
+    assert first["not_open_statuses"] == {">": 1}
+    widened = source(root, open_statuses=" />")
+    assert widened["tasks"][-1]["description"] == "Forwarded"
+    assert widened["tasks"][-1]["status"] == "custom"
     ship = tasks[1]
     assert ship["due"] == "2026-11-10"
     assert ship["reminder"] == {"date": None, "time": "09:00"}
@@ -214,10 +218,9 @@ def test_open_tasks_returns_open_tasks_with_stable_keys(tmp_path: Path) -> None:
     assert ship["path"] == "Projects/x.md"
     assert ship["line"] == 2
     review = tasks[2]
-    assert review["link"] == "https://code.example.org/pr/42"
+    assert review["link"] is None  # no index: not known as Horae's, a hand-written link
     assert review["key"] == f"obsidian:horae:{BLOCK}"
     assert review["source_fingerprint"] is None  # no index yet
-    assert tasks[3]["status"] == "custom"
     # stable across runs, and across edits that keep the key
     again = source(root)
     assert [t["key"] for t in again["tasks"]] == [t["key"] for t in tasks]
@@ -305,9 +308,20 @@ def test_a_forged_horae_block_id_proves_nothing(tmp_path: Path) -> None:
         ("Tasks.assistant.md", "Review")
     ]
     assert found["horae_output"] == 2
-    # the same text in the recorded note but another line (edited, or forged) is not trusted
-    (root / "Tasks.assistant.md").write_text(f"- [ ] Pay the attacker ^{BLOCK}\n")
-    assert source(root)["tasks"] == []
+    # in its writer note (writer-exclusive: no note intent writes it), the indexed block id
+    # is Horae's task even once edited in Obsidian: listed, and reported as edited
+    (root / "Tasks.assistant.md").write_text(f"- [ ] Review again ^{BLOCK}\n")
+    found = source(root)
+    assert [t["description"] for t in found["tasks"]] == ["Review again"]
+    assert found["tasks"][0]["edited"] is True
+    assert found["edited_horae_tasks"] == [
+        {
+            "key": f"obsidian:horae:{BLOCK}",
+            "path": "Tasks.assistant.md",
+            "line": 1,
+            "source_fingerprint": "github:pr:42",
+        }
+    ]
 
 
 def test_ambiguous_keys_are_withheld(tmp_path: Path) -> None:

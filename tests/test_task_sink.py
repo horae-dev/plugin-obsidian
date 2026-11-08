@@ -7,6 +7,8 @@ import asyncio
 import hashlib
 import json
 import os
+import time
+from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -38,6 +40,16 @@ NOTE = (
 
 def clock() -> datetime:
     return NOW
+
+
+@pytest.fixture(autouse=True)
+def paris(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """The instance time zone the core sets (`TZ`), with its summer time rules."""
+    monkeypatch.setenv("TZ", "Europe/Paris")
+    time.tzset()
+    yield
+    monkeypatch.undo()
+    time.tzset()
 
 
 @pytest.fixture
@@ -120,15 +132,21 @@ def test_cancel_and_todo_undo_and_restore(vault: Path) -> None:
     note = vault / "Notes" / "week.md"
     key = key_of(vault, "Pay rent #home")
     done = apply(vault, status(key, "done"))
-    assert tasksink.restore_status(wire(vault), done.details) is True
+    assert "before_line" not in done.details  # digests only, until the core wires task undo
+    with pytest.raises(SinkError) as raised:
+        tasksink.restore_status(wire(vault), done.details)
+    assert raised.value.kind == "not_restorable"
+    original = "- [ ] Pay rent 📅 2026-11-10 #home"
+    undo = {**done.details, "before_line": original}  # what the core's journal will supply
+    assert tasksink.restore_status(wire(vault), undo) is True
     assert note.read_bytes() == NOTE  # the undo puts the exact line back
-    assert tasksink.restore_status(wire(vault), done.details) is False  # already restored
+    assert tasksink.restore_status(wire(vault), undo) is False  # already restored
     cancelled = apply(vault, status(key, "cancelled"))
     assert "- [-] Pay rent 📅 2026-11-10 ❌ 2026-11-08 #home".encode() in note.read_bytes()
     # an undo over a line edited since is refused
     note.write_bytes(note.read_bytes().replace("❌ 2026-11-08".encode(), "❌ 2026-11-07".encode()))
     with pytest.raises(SinkError) as raised:
-        tasksink.restore_status(wire(vault), cancelled.details)
+        tasksink.restore_status(wire(vault), {**cancelled.details, "before_line": original})
     assert raised.value.kind == "target_changed"
     reopened = apply(vault, status(key, "todo"))
     assert reopened.details["changed"] is True
@@ -147,10 +165,13 @@ def test_snooze_writes_the_reminder_before_the_dates(vault: Path) -> None:
     apply(vault, status(key, "snoozed", "2026-11-12"))
     assert "- [ ] Pay rent ⏰ 2026-11-12 📅 2026-11-10 #home\r".encode() in note.read_bytes()
     assert apply(vault, status(key, "snoozed", "2026-11-12")).details["changed"] is False
-    # a recurring task may be snoozed, never closed
+    # a recurring task may be snoozed, never closed: done / cancelled change nothing and say
+    # so (the run does not fail)
     water = key_of(vault, "Water")
-    assert refused(vault, status(water, "done")) == "recurring_task"
-    assert refused(vault, status(water, "cancelled")) == "recurring_task"
+    for close in ("done", "cancelled"):
+        kept = apply(vault, status(water, close))
+        assert kept.details["changed"] is False
+        assert kept.details["recurring"] == "tick in Obsidian"
     apply(vault, status(water, "snoozed", "2026-11-10"))
     assert "- [ ] Water ⏰ 2026-11-10 🔁 every week".encode() in note.read_bytes()
     for until in (None, "soon", "2026-11-09T08:00:00", "2026-02-30"):
@@ -192,8 +213,23 @@ def test_a_note_changed_after_the_scan_is_refused(
         return found
 
     monkeypatch.setattr(tasksink, "scan", racing)
-    assert refused(vault, status(key, "done")) == "target_changed"
-    assert note.read_bytes() == NOTE + b"\nedited meanwhile"  # nothing written
+    # the note alone is read again after the scan: the user's edit elsewhere is kept
+    assert apply(vault, status(key, "done")).details["changed"] is True
+    assert note.read_bytes().endswith(b"\nedited meanwhile")
+    assert "✅ 2026-11-08".encode() in note.read_bytes()
+
+    def retitled(path: str) -> Any:
+        found = scan(path)
+        note.write_bytes(note.read_bytes().replace(b"Call", b"Phone"))  # the line itself
+        return found
+
+    monkeypatch.setattr(tasksink, "scan", retitled)
+    before = note.read_bytes()
+    assert refused(vault, status(key_of(vault, "Call \udcff Ada"), "done")) in (
+        "target_changed",
+        "task_not_found",
+    )
+    assert note.read_bytes() == before.replace(b"Call", b"Phone")  # nothing else written
 
 
 def test_the_line_is_checked_again_before_the_rename() -> None:
@@ -249,7 +285,6 @@ def test_create_then_update_by_fingerprint_round_trip(vault: Path) -> None:
         "changed": True,
         "path": "Tasks.assistant.md",
         "line": 1,
-        "line_text": line,
     }
     # the same fingerprint again: deduplicated across runs
     assert apply(vault, intent).details["changed"] is False
@@ -289,10 +324,11 @@ def test_a_forged_line_neither_suppresses_nor_receives_the_task(vault: Path) -> 
     # the index follows the sink's own edit: the line stays Horae's, reopening works
     assert apply(vault, status("github:pr:77", "todo")).details["changed"] is True
     assert [t["description"] for t in open_tasks(wire(vault))["tasks"]].count("Real") == 1
-    # edited in Obsidian (ticked), it is no longer verified, but never written again
+    # edited in Obsidian (ticked) in its writer note, it is still Horae's task: never
+    # written again, still found by its fingerprint
     owned.write_text(f"- [x] Real ✅ 2026-11-08 ^{block}\n")
     assert apply(vault, intent).details["changed"] is False
-    assert refused(vault, status("github:pr:77", "todo")) == "task_not_found"
+    assert apply(vault, status("github:pr:77", "todo")).details["changed"] is True
 
 
 def test_create_appends_to_an_owned_note_only(vault: Path) -> None:
@@ -354,8 +390,12 @@ def test_the_index_is_atomic_bounded_and_fails_closed(vault: Path) -> None:
     with index.locked() as entries:
         for n in range(3):
             index.add(entries, f"mail:{n}", start + timedelta(minutes=n))
-        index.save(entries)
-    assert set(index.read().fingerprints().values()) == {"mail:1", "mail:2"}
+        index.save(entries)  # where the lines are is unknown: nothing is dropped
+    assert set(index.read().fingerprints().values()) == {"mail:0", "mail:1", "mail:2"}
+    with index.locked() as entries:
+        # mail:0's line still exists: never dropped; the oldest gone one (mail:1) is
+        index.save(entries, present={block_of("mail:0")})
+    assert set(index.read().fingerprints().values()) == {"mail:0", "mail:2"}
     assert MAX_ENTRIES >= 10_000
     directory = vault / ".horae"
     assert directory.stat().st_mode & 0o777 == 0o700

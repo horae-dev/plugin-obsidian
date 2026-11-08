@@ -43,8 +43,10 @@ def build() -> Plugin:
     )
 
     @plugin.source(source.REF)
-    def open_tasks(call: Call, limit: int = 500) -> dict[str, Any]:
-        return source.open_tasks(call.paths, limit=limit)
+    def open_tasks(
+        call: Call, limit: int = 500, open_statuses: str = source.DEFAULT_OPEN_STATUSES
+    ) -> dict[str, Any]:
+        return source.open_tasks(call.paths, limit=limit, open_statuses=open_statuses)
 
     plugin.add(VaultSink([TOOL, TASK_TOOL]))
     return plugin
