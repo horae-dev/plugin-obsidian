@@ -133,7 +133,8 @@
    {
     "type": "notify.push",
     "body": "Call the plumber",
-    "title": "⏰ 2026-11-09 14:30"
+    "title": "⏰ 2026-11-09 14:30",
+    "key": "rem:0424f4358c41:2026-11-09T14:30"
    }
   ],
   "data": {
@@ -279,7 +280,8 @@
    {
     "type": "notify.push",
     "body": "Call the plumber",
-    "title": "⏰ 2026-11-09 14:30"
+    "title": "⏰ 2026-11-09 14:30",
+    "key": "rem:0424f4358c41:2026-11-09T14:30"
    }
   ],
   "data": {
@@ -705,7 +707,8 @@
    {
     "type": "notify.push",
     "body": "Snoozed to 16:00",
-    "title": "⏰ 2026-11-09 16:00"
+    "title": "⏰ 2026-11-09 16:00",
+    "key": "rem:24c092edd9c5:2026-11-09T16:00"
    }
   ],
   "data": {
@@ -851,12 +854,14 @@
    {
     "type": "notify.push",
     "body": "Take the bins out",
-    "title": "⏰ 2026-11-09 06:30"
+    "title": "⏰ 2026-11-09 06:30",
+    "key": "rem:4815624ade5f:2026-11-09T06:30"
    },
    {
     "type": "notify.push",
     "body": "Overdue: 2\n- Send the insurance form (due 2026-11-05)\n- Renew the passport (due 2026-11-08)\nToday: 3\n- 14:30 Call the plumber\n- 16:00 Snoozed to 16:00\n- Book the train tickets",
-    "title": "Today, 2026-11-09"
+    "title": "Today, 2026-11-09",
+    "key": "digest:2026-11-09"
    }
   ],
   "data": {
@@ -1002,7 +1007,8 @@
    {
     "type": "notify.push",
     "body": "Overdue: 2\n- Send the insurance form (due 2026-11-05)\n- Renew the passport (due 2026-11-08)\nToday: 3\n- 14:30 Call the plumber\n- 16:00 Snoozed to 16:00\n- Book the train tickets",
-    "title": "Today, 2026-11-09"
+    "title": "Today, 2026-11-09",
+    "key": "digest:2026-11-09"
    }
   ],
   "data": {
@@ -1288,7 +1294,8 @@
    {
     "type": "notify.push",
     "body": "Overdue: 7\n- Snoozed to tomorrow (due 2026-11-01)\n- Snoozed to 16:00 (due 2026-11-01)\n- Send the insurance form (due 2026-11-05)\n- Renew the passport (due 2026-11-08)\n- Call the plumber (due 2026-11-09)\n- Book the train tickets (due 2026-11-09)\n- Take the bins out (due 2026-11-09)",
-    "title": "Today, 2026-11-10"
+    "title": "Today, 2026-11-10",
+    "key": "digest:2026-11-10"
    }
   ],
   "data": {
@@ -1435,12 +1442,14 @@
    {
     "type": "notify.push",
     "body": "Take the bins out",
-    "title": "⏰ 2026-11-09 06:30"
+    "title": "⏰ 2026-11-09 06:30",
+    "key": "rem:4815624ade5f:2026-11-09T06:30"
    },
    {
     "type": "notify.push",
     "body": "Overdue: 2\n- Send the insurance form (due 2026-11-05)\n- Renew the passport (due 2026-11-08)\nToday: 3\n- 14:30 Call the plumber\n- 16:00 Snoozed to 16:00\n- Book the train tickets\nSome tasks could not be read",
-    "title": "Today, 2026-11-09"
+    "title": "Today, 2026-11-09",
+    "key": "digest:2026-11-09"
    }
   ],
   "data": {
@@ -1594,12 +1603,14 @@
    {
     "type": "notify.push",
     "body": "Take the bins out",
-    "title": "⏰ 2026-11-09 06:30"
+    "title": "⏰ 2026-11-09 06:30",
+    "key": "rem:4815624ade5f:2026-11-09T06:30"
    },
    {
     "type": "notify.push",
     "body": "Overdue: 2\n- Send the insurance form (due 2026-11-05)\n- Renew the passport (due 2026-11-08)\nToday: 3\n- 14:30 Call the plumber\n- 16:00 Snoozed to 16:00\n- Book the train tickets\nSome tasks could not be read",
-    "title": "Today, 2026-11-09"
+    "title": "Today, 2026-11-09",
+    "key": "digest:2026-11-09"
    }
   ],
   "data": {
@@ -1693,7 +1704,8 @@
    {
     "type": "notify.push",
     "body": "Today: 1\n- Book the train tickets",
-    "title": "Today, 2026-11-09"
+    "title": "Today, 2026-11-09",
+    "key": "digest:2026-11-09"
    }
   ],
   "data": {
@@ -1839,7 +1851,8 @@
    {
     "type": "notify.push",
     "body": "Renew the passport",
-    "title": "Overdue: due 2026-11-08"
+    "title": "Overdue: due 2026-11-08",
+    "key": "od:ed55fe01cb3c:2026-11-08"
    }
   ],
   "data": {
@@ -1985,7 +1998,8 @@
    {
     "type": "notify.push",
     "body": "Renew the passport",
-    "title": "Overdue: due 2026-11-08"
+    "title": "Overdue: due 2026-11-08",
+    "key": "od:ed55fe01cb3c:2026-11-08"
    }
   ],
   "data": {
@@ -2271,17 +2285,20 @@
    {
     "type": "notify.push",
     "body": "Call the plumber",
-    "title": "Overdue: due 2026-11-09"
+    "title": "Overdue: due 2026-11-09",
+    "key": "od:0424f4358c41:2026-11-09"
    },
    {
     "type": "notify.push",
     "body": "Book the train tickets",
-    "title": "Overdue: due 2026-11-09"
+    "title": "Overdue: due 2026-11-09",
+    "key": "od:342247d4ea1f:2026-11-09"
    },
    {
     "type": "notify.push",
     "body": "Take the bins out",
-    "title": "Overdue: due 2026-11-09"
+    "title": "Overdue: due 2026-11-09",
+    "key": "od:4815624ade5f:2026-11-09"
    }
   ],
   "data": {
@@ -2346,12 +2363,14 @@
    {
     "type": "notify.push",
     "body": "Water the plants · c0f6",
-    "title": "⏰ 2026-11-09 14:30"
+    "title": "⏰ 2026-11-09 14:30",
+    "key": "rem:c0f6d5125fb1:2026-11-09T14:30"
    },
    {
     "type": "notify.push",
     "body": "Water the plants · 6825",
-    "title": "⏰ 2026-11-09 14:30"
+    "title": "⏰ 2026-11-09 14:30",
+    "key": "rem:682564ca234b:2026-11-09T14:30"
    }
   ],
   "data": {
@@ -2405,7 +2424,8 @@
    {
     "type": "notify.push",
     "body": "Stretch",
-    "title": "⏰ 2026-11-10 08:00"
+    "title": "⏰ 2026-11-10 08:00",
+    "key": "rem:37b2cccee8c5:2026-11-10T08:00"
    }
   ],
   "data": {
@@ -2458,7 +2478,8 @@
    {
     "type": "notify.push",
     "body": "Check the boiler",
-    "title": "⏰ 2026-03-29 02:30"
+    "title": "⏰ 2026-03-29 02:30",
+    "key": "rem:6cb9b99ba38d:2026-03-29T02:30"
    }
   ],
   "data": {
@@ -2511,7 +2532,8 @@
    {
     "type": "notify.push",
     "body": "Check the boiler",
-    "title": "⏰ 2026-10-25 02:30"
+    "title": "⏰ 2026-10-25 02:30",
+    "key": "rem:6cb9b99ba38d:2026-10-25T02:30"
    }
   ],
   "data": {
@@ -2611,7 +2633,8 @@
    {
     "type": "notify.push",
     "body": "Read the doc for the project",
-    "title": "⏰ 2026-11-09 14:30"
+    "title": "⏰ 2026-11-09 14:30",
+    "key": "rem:cd8cedf7dda2:2026-11-09T14:30"
    }
   ],
   "data": {
@@ -2665,7 +2688,8 @@
    {
     "type": "notify.push",
     "body": "Forwarded",
-    "title": "⏰ 2026-11-09 14:30"
+    "title": "⏰ 2026-11-09 14:30",
+    "key": "rem:be5710b8885b:2026-11-09T14:30"
    }
   ],
   "data": {
@@ -2719,7 +2743,8 @@
    {
     "type": "notify.push",
     "body": "Night call",
-    "title": "⏰ 2026-11-09 03:00"
+    "title": "⏰ 2026-11-09 03:00",
+    "key": "rem:a791d61544be:2026-11-09T03:00"
    }
   ],
   "data": {
@@ -2830,7 +2855,8 @@
    {
     "type": "notify.push",
     "body": "During quiet hours: 1\n- ⏰ 03:00 Night call\nToday: 1\n- Plan",
-    "title": "Today, 2026-11-09"
+    "title": "Today, 2026-11-09",
+    "key": "digest:2026-11-09"
    }
   ],
   "data": {
@@ -2893,7 +2919,8 @@
    {
     "type": "notify.push",
     "body": "Today: 1\n- Plan",
-    "title": "Today, 2026-11-09"
+    "title": "Today, 2026-11-09",
+    "key": "digest:2026-11-09"
    }
   ],
   "data": {

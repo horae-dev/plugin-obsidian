@@ -3,6 +3,7 @@
 review decisions), on the function directly and through the plugin as the core calls it."""
 
 import json
+import re
 from datetime import UTC, date, datetime, time
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -190,6 +191,54 @@ def test_identical_pushes_get_a_stable_suffix_from_their_key() -> None:
     assert all(body.startswith("Water · ") and len(body) == len("Water · 3fa2") for body in first)
     assert bodies("14:30", one, two) == first  # stable
     assert bodies("14:30", one) == ["Water"]  # alone: no suffix
+
+
+# --- stable keys ----------------------------------------------------------------------------
+
+KEY_SHAPE = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
+
+
+def keys(at: str, *tasks: dict[str, Any], **extra: Any) -> list[str]:
+    _, intents = reminders(params(at, **extra), collected(*tasks))
+    return [i["key"] for i in intents]
+
+
+def test_every_push_carries_a_key_in_the_core_alphabet() -> None:
+    remind = task("Water", **REMINDING)
+    late = task("Late", **BECAME_OVERDUE)
+    for at in ("07:00", "09:00", "14:30"):
+        found = keys(at, remind, late)
+        assert found
+        assert all(KEY_SHAPE.match(key) for key in found), found
+    assert keys("07:00", remind) == ["digest:2026-11-09"]
+    (reminder,) = keys("14:30", remind)
+    assert re.fullmatch(r"rem:[0-9a-f]{12}:2026-11-09T14:30", reminder)
+    nudge = [k for k in keys("09:00", late) if k.startswith("od:")]
+    assert len(nudge) == 1
+    assert re.fullmatch(r"od:[0-9a-f]{12}:2026-11-08", nudge[0])
+
+
+def test_keys_are_stable_across_runs_and_distinct_per_task() -> None:
+    one = task("Water", **REMINDING)
+    two = {**task("Water", **REMINDING), "key": "obsidian:line:Other.md:3"}
+    first = keys("14:30", one, two)
+    assert len(set(first)) == 2
+    assert keys("14:30", one, two) == first
+    # A later run in the same window proposes the same key, and so does a changed body.
+    assert keys("14:31", one, two) == first
+    assert keys("14:30", {**one, "description": "Water the plants"}) == [first[0]]
+    # The nudges differ per task too, and by the due date.
+    late = task("Late", **BECAME_OVERDUE)
+    other = {**task("Other", **BECAME_OVERDUE)}
+    nudges = keys("09:00", late, other)
+    assert len(set(nudges)) == 2
+    assert keys("09:00", late, other) == nudges
+
+
+def test_a_new_reminder_time_is_a_new_key() -> None:
+    at_two = task("Call", due=TODAY, reminder={"date": None, "time": "14:30"})
+    at_three = {**at_two, "reminder": {"date": None, "time": "15:00"}}
+    assert keys("14:30", at_two) != keys("15:00", at_three)
 
 
 # --- snoozed --------------------------------------------------------------------------------
@@ -556,7 +605,15 @@ def test_the_plugin_proposes_the_pushes() -> None:
         )
     )
     assert result.error is None
-    assert result.intents == [{"type": "notify.push", "title": f"⏰ {TODAY} 14:30", "body": "Call"}]
+    (intent,) = result.intents
+    assert intent == {
+        "type": "notify.push",
+        "title": f"⏰ {TODAY} 14:30",
+        "body": "Call",
+        "key": intent["key"],
+    }
+    assert intent["key"].startswith("rem:")
+    assert intent["key"].endswith(f":{TODAY}T14:30")
     assert result.data["reminders"] == 1
 
 

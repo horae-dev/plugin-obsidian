@@ -455,7 +455,7 @@ dev = [
 [[package]]
 name = "horae-sdk"
 version = "0.3.0"
-source = { git = "https://github.com/horae-dev/horae?subdirectory=sdk&branch=main#c8d97165efad181c2c28e4af7402ec8d3c17a337" }
+source = { git = "https://github.com/horae-dev/horae?subdirectory=sdk&branch=main#648ddb0a21c5998ae84f30200923758dda32d80e" }
 dependencies = [
     { name = "anyio" },
     { name = "mcp" },
