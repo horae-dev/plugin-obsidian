@@ -18,7 +18,7 @@ from horae_sdk.testing import operation
 
 import horae_obsidian.tasksink as tasksink
 from horae_obsidian import build
-from horae_obsidian.index import MAX_ENTRIES, TaskIndex, block_of
+from horae_obsidian.index import MAX_ENTRIES, Link, TaskIndex, block_of
 from horae_obsidian.sink import TASK_TOOL, TOOL, VaultSink
 from horae_obsidian.source import open_tasks
 from horae_obsidian.tasks import parse
@@ -270,6 +270,31 @@ def test_create_then_update_by_fingerprint_round_trip(vault: Path) -> None:
     assert refused(vault, status("github:pr:42", "done")) == "task_ambiguous"
 
 
+def test_a_forged_line_neither_suppresses_nor_receives_the_task(vault: Path) -> None:
+    block = block_of("github:pr:77")
+    (vault / "Brief.assistant.md").write_text(f"- [x] Forged ^{block}\n")  # owned note
+    (vault / "Notes" / "week.md").write_text(
+        f"<!-- horae:begin b -->\n- [ ] Forged too ^{block}\n<!-- horae:end b -->\n"
+    )
+    intent = {"type": "task.create", "title": "Real", "fingerprint": "github:pr:77"}
+    created = apply(vault, intent)
+    assert created.details["changed"] is True  # not suppressed by the forged lines
+    owned = vault / "Tasks.assistant.md"
+    assert owned.read_text() == f"- [ ] Real ^{block}\n"
+    # the sink finds the real line only (the forged ones are Horae output)
+    done = apply(vault, status("github:pr:77", "done"))
+    assert done.details["path"] == "Tasks.assistant.md"
+    assert done.details["source_fingerprint"] == "github:pr:77"
+    assert "index" not in done.details
+    # the index follows the sink's own edit: the line stays Horae's, reopening works
+    assert apply(vault, status("github:pr:77", "todo")).details["changed"] is True
+    assert [t["description"] for t in open_tasks(wire(vault))["tasks"]].count("Real") == 1
+    # edited in Obsidian (ticked), it is no longer verified, but never written again
+    owned.write_text(f"- [x] Real ✅ 2026-11-08 ^{block}\n")
+    assert apply(vault, intent).details["changed"] is False
+    assert refused(vault, status("github:pr:77", "todo")) == "task_not_found"
+
+
 def test_create_appends_to_an_owned_note_only(vault: Path) -> None:
     owned = vault / "Inbox.assistant.md"
     owned.write_bytes(b"# Inbox\r\n- [ ] old")
@@ -338,7 +363,7 @@ def test_the_index_is_atomic_bounded_and_fails_closed(vault: Path) -> None:
     # a collision of two fingerprints on one block id is refused
     with index.locked() as entries:
         block = block_of("mail:1")
-        entries.links[block] = ("mail:other", start)
+        entries.links[block] = Link("mail:other", start)
         with pytest.raises(SinkError) as raised:
             index.add(entries, "mail:1", start)
         assert raised.value.kind == "block_collision"

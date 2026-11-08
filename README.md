@@ -108,9 +108,11 @@ due / scheduled / start, reminder, tags, the `[link](…)`, priority, recurrence
 id, JSON-safe. A task whose key is a duplicate (`duplicate_key`) or not known unique
 (`uniqueness_unknown`) is listed in `withheld`, not in `tasks`; `skipped`, `truncated` and
 `complete` describe the scan. **Horae's own output is not read back**: a line in an owned
-block, or in an owned note (`*.assistant.md`), is skipped (counted in `horae_output`) unless
-it ends with a `^h-` block id the index maps, i.e. Horae's Tasks writer wrote it for a
-`task.create`; such tasks carry their `source_fingerprint` (e.g. `github:pr:42`), so a
+block is skipped (counted in `horae_output`), and so is a line in an owned note
+(`*.assistant.md`) unless the index records that Horae's Tasks writer wrote **exactly that
+line in that note** for a `task.create` (path and line SHA-256; a `^h-` block id alone is the
+public hash of a fingerprint and proves nothing). Skipped lines never count as duplicates of
+the others, so a forged copy cannot hide a real task. Tasks the writer wrote carry their `source_fingerprint` (e.g. `github:pr:42`), so a
 consumer can tell them from the user's tasks and dedupe them against the live source.
 Otherwise an LLM-written note, or a prompt injection it obeyed, would come back the next day
 as the user's own task. The source writes nothing.
@@ -137,8 +139,10 @@ routing parameters are accepted and ignored) applies:
 - `task.create`. The line is horae-sdk's `task_line` (title escaped, link rendered inert with
   `link_destination`), then `⏰ HH:MM`, `📅 YYYY-MM-DD` and `^h-<hash>`, appended to the
   entry's `note` parameter (default `Tasks.assistant.md`; an owned note only, `not_owned`),
-  created when missing. A fingerprint whose block id is already in the vault is not written
-  again (`changed: false`). The index entry is written first.
+  created when missing. A fingerprint whose task is already in the vault is not written again
+  (`changed: false`); a forged `^h-` line in an owned note or block does not count, a line the
+  writer wrote and the user then edited in its note does. The index entry (fingerprint, note,
+  line SHA-256) is written first; the sink updates the digest when it changes that line.
 
 **The index** is `.horae/obsidian-tasks.json` in the vault (the hidden folder the scan skips),
 mode 0700, written atomically under an exclusive `flock` (`index_busy` after 8 s), at most
@@ -147,7 +151,9 @@ edited index can drop a link, never misdirect one. Corrupt content starts over; 
 `format`, a symbolic link or an unreadable file is `index_unavailable` for the sink, and the
 source reports it (`index`) without failing.
 
-**Limits.** A note whose path holds `:` or `\` is read but not written (`path_invalid`). A
+**Limits.** A line Horae wrote into an owned note and you then edit in Obsidian (tick it,
+change its date) no longer matches its recorded digest: it is no longer listed nor changed by
+Horae (fail closed). Move it to one of your own notes to keep it (the `^h-` link survives). A note whose path holds `:` or `\` is read but not written (`path_invalid`). A
 second `^h-` copy of a task (a copied line) makes both ambiguous: remove one. The sink scans
 the whole vault for each intent.
 

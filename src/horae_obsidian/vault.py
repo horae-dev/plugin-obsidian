@@ -108,17 +108,19 @@ class Scan:
         so `key_unique` proves nothing for a vault-scoped key (see `known_unique`)."""
         return not self.truncated and not self.skipped
 
-    def known_unique(self, task: Task) -> bool:
+    def known_unique(self, task: Task, counts: Counter[str] | None = None) -> bool:
         """Whether `task`'s key is shown to be unique in the vault (fail closed).
 
-        - Not `key_unique`: no.
+        - Not `key_unique` (or, given `counts`, the tasks a caller considers hold its key
+          more than once: a source that ignores some lines counts only the others): no.
         - A vault-scoped key (🆔, Horae's block id: `Task.vault_scoped`): only when
           `keys_complete`.
         - A note-scoped key (another block id, a digest) names its note's NFC path: the note
           was read whole, so only another note with the same NFC path could hold it. That is
           ruled out unless the scan was truncated (notes never listed) or skipped a path
           equal to it in NFC."""
-        if not task.key_unique:
+        unique = task.key_unique if counts is None else counts[task.key] == 1
+        if not unique:
             return False
         if task.vault_scoped:
             return self.keys_complete

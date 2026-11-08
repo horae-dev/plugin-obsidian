@@ -14,6 +14,11 @@ its `source_fingerprint` (the `github:pr:42` of the task that created it), and
   belong to the plugin's user and not be writable by group or others (`index_unavailable`),
   and be on a **local** file system (`flock` and `fsync` are not reliable on network
   shares).
+- **Provenance**: each entry also records the note path and the SHA-256 of the exact line
+  the Tasks writer wrote (`Link.path`, `Link.line_sha256`; updated when the sink changes that
+  line). A block id is public (anyone who sees the fingerprint can compute it), so it never
+  proves on its own that Horae wrote a line: only a line at that path with that digest is
+  Horae's Tasks output (`tasksink.horae_output`).
 - **Checked, not trusted**: an entry is used only when its block id is the hash of its
   fingerprint, so a hand-edited or synced-over index can drop links, never misdirect one.
   Losing the index loses only `source_fingerprint`: the block id still finds the task from
@@ -58,6 +63,7 @@ LOCK_TIMEOUT_S = 8.0
 LOCK_POLL_S = 0.05
 FINGERPRINT = re.compile(r"[A-Za-z0-9._:-]{1,128}")
 """A `task.create` fingerprint (the contract's pattern)."""
+_SHA = re.compile(r"[0-9a-f]{64}")
 _STAMP = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\+00:00")
 
 
@@ -70,16 +76,32 @@ def block_of(fingerprint: str) -> str:
     return "h-" + hashlib.sha256(fingerprint.encode("utf-8")).hexdigest()[:12]
 
 
+@dataclass(frozen=True)
+class Link:
+    """One entry: the fingerprint, when it was recorded, and where the line was written."""
+
+    fingerprint: str
+    at: datetime
+    path: str | None = None
+    """The note the Tasks writer wrote the line to."""
+    line_sha256: str | None = None
+    """The SHA-256 of the exact line written there (its ending excluded)."""
+
+    def wrote(self, path: str, line_sha256: str) -> bool:
+        """Whether this is the line the Tasks writer wrote (same note, same bytes)."""
+        return self.path == path and self.line_sha256 == line_sha256
+
+
 @dataclass
 class Entries:
-    """The index as read: block id → (fingerprint, when it was recorded)."""
+    """The index as read: block id → `Link`."""
 
-    links: dict[str, tuple[str, datetime]] = field(default_factory=dict)
+    links: dict[str, Link] = field(default_factory=dict)
     reset: bool = False
     """The file held corrupt or oversized content and was started over."""
 
     def fingerprints(self) -> dict[str, str]:
-        return {block: fingerprint for block, (fingerprint, _) in self.links.items()}
+        return {block: link.fingerprint for block, link in self.links.items()}
 
 
 def _parse(raw: bytes | None) -> Entries:
@@ -114,7 +136,19 @@ def _parse(raw: bytes | None) -> Entries:
             continue
         if block_of(fingerprint) != block:  # checked, never trusted
             continue
-        entries.links[block] = (fingerprint, datetime.fromisoformat(stamp))
+        path, digest = value.get("path"), value.get("line_sha256")
+        written = (
+            isinstance(path, str)
+            and 0 < len(path) <= 1024
+            and isinstance(digest, str)
+            and _SHA.fullmatch(digest) is not None
+        )
+        entries.links[block] = Link(
+            fingerprint,
+            datetime.fromisoformat(stamp),
+            path if written and isinstance(path, str) else None,
+            digest if written and isinstance(digest, str) else None,
+        )
     return entries
 
 
@@ -225,28 +259,39 @@ class TaskIndex:
                         if os.lstat(path).st_mtime < cutoff:
                             os.unlink(path)
 
-    def add(self, entries: Entries, fingerprint: str, now: datetime) -> str:
-        """Records `fingerprint` in `entries` (call it under `locked`, then `save`) and
-        returns its block id. `block_collision` when the block id already links another
-        fingerprint (two fingerprints with the same 48-bit hash: never seen in practice)."""
+    def add(
+        self,
+        entries: Entries,
+        fingerprint: str,
+        now: datetime,
+        *,
+        path: str | None = None,
+        line_sha256: str | None = None,
+    ) -> str:
+        """Records `fingerprint` (and the note and line digest the Tasks writer wrote) in
+        `entries` (call it under `locked`, then `save`) and returns its block id.
+        `block_collision` when the block id already links another fingerprint (two
+        fingerprints with the same 48-bit hash: never seen in practice)."""
         block = block_of(fingerprint)
         known = entries.links.get(block)
-        if known is not None and known[0] != fingerprint:
+        if known is not None and known.fingerprint != fingerprint:
             raise SinkError(
                 "block_collision", "another task fingerprint has the same Horae block id"
             )
-        entries.links[block] = (fingerprint, now.astimezone(UTC).replace(microsecond=0))
+        at = now.astimezone(UTC).replace(microsecond=0)
+        entries.links[block] = Link(fingerprint, at, path, line_sha256)
         return block
 
     def save(self, entries: Entries) -> None:
         """Writes `entries` (under `locked`), the `max_entries` most recent kept."""
-        ordered = sorted(entries.links.items(), key=lambda item: item[1][1])
+        ordered = sorted(entries.links.items(), key=lambda item: item[1].at)
         kept = ordered[-self.max_entries :] if self.max_entries else []
         entries.links = dict(kept)
-        tasks = {
-            block: {"fingerprint": fingerprint, "at": at.isoformat()}
-            for block, (fingerprint, at) in entries.links.items()
-        }
+        tasks: dict[str, dict[str, str]] = {}
+        for block, link in entries.links.items():
+            tasks[block] = {"fingerprint": link.fingerprint, "at": link.at.isoformat()}
+            if link.path is not None and link.line_sha256 is not None:
+                tasks[block].update(path=link.path, line_sha256=link.line_sha256)
         data = json.dumps({"format": FORMAT, "tasks": tasks}, sort_keys=True).encode()
         fd, temporary = tempfile.mkstemp(
             prefix=TEMPORARY_PREFIX, suffix=TEMPORARY_SUFFIX, dir=self.directory
@@ -286,6 +331,7 @@ __all__ = [
     "INDEX_FILE",
     "MAX_ENTRIES",
     "Entries",
+    "Link",
     "TaskIndex",
     "block_of",
 ]

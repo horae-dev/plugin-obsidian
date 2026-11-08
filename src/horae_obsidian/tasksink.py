@@ -38,6 +38,7 @@ written again (`changed: false`: the fingerprint deduplicates across runs). The 
 import hashlib
 import math
 import re
+from collections import Counter
 from collections.abc import Callable
 from datetime import date, datetime, timedelta
 from typing import Any
@@ -46,7 +47,7 @@ from horae_sdk import Applied, Paths, SinkError
 from horae_sdk import tasks as sdk_tasks
 
 from horae_obsidian import writer
-from horae_obsidian.index import TaskIndex, block_of
+from horae_obsidian.index import Link, TaskIndex, block_of
 from horae_obsidian.tasks import (
     ENCODING_ERRORS,
     REMINDER,
@@ -87,14 +88,13 @@ def _scan(paths: Paths) -> tuple[str, Scan]:
 # --- task.update_status -------------------------------------------------------------------
 
 
-def locate(
-    found: Scan, target: str, fingerprints: dict[str, str] | None = None
-) -> tuple[Document, Task]:
+def locate(found: Scan, target: str, links: dict[str, Link] | None = None) -> tuple[Document, Task]:
     """The one task `target` names (its key, or the fingerprint behind its `^h-` block id),
     and its note; `SinkError` unless it is found once and shown unique. A line of Horae's
-    own output (`horae_output`: an owned note or block, unless the index shows Horae's Tasks
-    writer wrote it) is never a target, as the source never lists it."""
-    links = fingerprints or {}
+    own output (`horae_output`: an owned block, or an owned note unless the index records
+    that Horae's Tasks writer wrote exactly that line there) is never a target, as the source
+    never lists it."""
+    links = links or {}
     block = None
     if not target.startswith("obsidian:"):
         try:
@@ -114,10 +114,11 @@ def locate(
     if len(matches) > 1:
         raise SinkError("task_ambiguous", f"{len(matches)} tasks match {shown}: none is changed")
     document, task = matches[0]
-    if not found.known_unique(task):
+    counts = eligible_keys(found, links)
+    if not found.known_unique(task, counts):
         why = (
             "another task has the same key"
-            if not task.key_unique
+            if counts[task.key] != 1
             else "the scan did not read every note, so its key may not be unique"
         )
         raise SinkError("task_ambiguous", f"{shown}: {why}; nothing is changed")
@@ -206,7 +207,8 @@ def update_status(paths: Paths, intent: dict[str, Any], clock: Clock = now) -> A
     if not isinstance(target, str) or status not in STATUSES:
         raise SinkError("intent_invalid", "task.update_status needs a task and a status")
     _, found = _scan(paths)
-    document, task = locate(found, target, _fingerprints(paths))
+    links = _links(paths)
+    document, task = locate(found, target, links)
     text = new_line(task, str(status), intent.get("until"), clock)
     details: dict[str, Any] = {
         "path": json_safe(task.path),
@@ -215,9 +217,9 @@ def update_status(paths: Paths, intent: dict[str, Any], clock: Clock = now) -> A
         "before_line_sha256": task.line_sha256,
         "before_sha256": document.sha256,
     }
-    fingerprint = _fingerprint_of(paths, task)
-    if fingerprint is not None:
-        details["source_fingerprint"] = fingerprint
+    link = links.get(task.horae_block or "")
+    if link is not None:
+        details["source_fingerprint"] = link.fingerprint
     if text == task.line.text:
         return Applied(target, details={**details, "changed": False})
     after = document.replace_line(task, text)
@@ -229,31 +231,65 @@ def update_status(paths: Paths, intent: dict[str, Any], clock: Clock = now) -> A
     )
     if not task.invalid_utf8:  # the undo needs the exact line back
         details["before_line"] = task.line.text
+    if not _relink(paths, task, _sha(text)):
+        details["index"] = "stale"
     return Applied(target, details=details)
 
 
-def _fingerprint_of(paths: Paths, task: Task) -> str | None:
-    return None if task.horae_block is None else _fingerprints(paths).get(task.horae_block)
-
-
-def _fingerprints(paths: Paths) -> dict[str, str]:
-    """The index (block id → fingerprint); empty when it cannot be read."""
+def _links(paths: Paths) -> dict[str, Link]:
+    """The index (block id → `Link`); empty when it cannot be read."""
     try:
-        return TaskIndex(writer.vault_of(paths)).read().fingerprints()
+        return TaskIndex(writer.vault_of(paths)).read().links
     except SinkError:
         return {}
 
 
-def horae_output(task: Task, fingerprints: dict[str, str]) -> bool:
-    """Whether `task` is a line of Horae's own output, never read back as the user's task:
-    in an owned block, or in an owned note (`*.assistant.md`) unless it holds a `^h-` block
-    id the index maps (a line Horae's Tasks writer wrote for a `task.create`). Otherwise an
-    LLM-written note, or a prompt injection it obeyed, would come back as a task."""
+def _relink(paths: Paths, task: Task, line_sha256: str) -> bool:
+    """After the sink changed a line Horae's Tasks writer wrote in an owned note, record its
+    new digest so it stays Horae's Tasks output. False when the index could not be updated
+    (the line is then treated as unverified output: hidden, never trusted)."""
+    block = task.horae_block
+    if block is None or not writer.is_owned(task.path):
+        return True
+    index = TaskIndex(writer.vault_of(paths))
+    try:
+        with index.locked() as entries:
+            link = entries.links.get(block)
+            if link is None or not link.wrote(task.path, task.line_sha256):
+                return True
+            entries.links[block] = Link(link.fingerprint, link.at, link.path, line_sha256)
+            index.save(entries)
+    except (SinkError, OSError):
+        return False
+    return True
+
+
+def eligible_keys(found: Scan, links: dict[str, Link]) -> Counter[str]:
+    """How many tasks hold each key, Horae's own output (`horae_output`) left out: a line
+    that is never listed nor changed cannot make a real task ambiguous (a forged `^h-` copy
+    would otherwise hide the task it copies)."""
+    return Counter(
+        task.key
+        for document in found.documents
+        for task in document.tasks
+        if not horae_output(task, links)
+    )
+
+
+def horae_output(task: Task, links: dict[str, Link]) -> bool:
+    """Whether `task` is a line of Horae's own output, never read back as the user's task.
+
+    A line in an owned block always is. A line in an owned note (`*.assistant.md`) is,
+    unless the index records that Horae's Tasks writer wrote **exactly that line in that
+    note** (`Link.wrote`: path and line SHA-256). A `^h-` block id alone proves nothing: it
+    is the public hash of a fingerprint, so an LLM-written note, or a prompt injection it
+    obeyed, could end a line with it and come back as the user's task."""
     if task.in_owned_block:
         return True
     if not writer.is_owned(task.path):
         return False
-    return task.horae_block is None or task.horae_block not in fingerprints
+    link = links.get(task.horae_block or "")
+    return link is None or not link.wrote(task.path, task.line_sha256)
 
 
 def restore_status(paths: Paths, details: dict[str, Any]) -> bool:
@@ -280,6 +316,7 @@ def restore_status(paths: Paths, details: dict[str, Any]) -> bool:
     task = changed[0]
     after = document.replace_line(task, before_line)
     writer.put(paths, path, after, document.sha256, _check_line(document, task, after))
+    _relink(paths, task, _sha(before_line))
     return True
 
 
@@ -339,11 +376,21 @@ def create(
     fingerprint = str(intent["fingerprint"])
     block = block_of(fingerprint)
     vault, found = _scan(paths)
+    index = TaskIndex(vault)
+    links = index.read().links
+    link = links.get(block)
+    # Already written: a line with the block id that is not unverified Horae output (a forged
+    # `^h-` line in an owned note or block never suppresses the task), or, once the index
+    # records a write, that line edited in its note (ticked in Obsidian: not written again).
     existing = [
         (document, task)
         for document in found.documents
         for task in document.tasks
         if task.horae_block == block
+        and (
+            not horae_output(task, links)
+            or (link is not None and link.path == task.path and not task.in_owned_block)
+        )
     ]
     details: dict[str, Any] = {"block_id": block, "dedupe_complete": found.keys_complete}
     if existing:
@@ -357,9 +404,8 @@ def create(
                 "line": task.line.number,
             },
         )
-    index = TaskIndex(vault)
     with index.locked() as entries:
-        index.add(entries, fingerprint, clock())
+        index.add(entries, fingerprint, clock(), path=note, line_sha256=_sha(line))
         index.save(entries)
     before = writer.read(paths, note)
     eol = b"\r\n" if before is not None and b"\r\n" in before else b"\n"
@@ -391,6 +437,7 @@ __all__ = [
     "DEFAULT_NOTE",
     "TASK_TYPES",
     "create",
+    "eligible_keys",
     "horae_output",
     "locate",
     "new_line",

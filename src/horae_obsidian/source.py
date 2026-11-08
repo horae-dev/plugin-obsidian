@@ -11,10 +11,12 @@ reminder, tags, the `[link](…)` `task_line` writes, priority and recurrence, w
 line and `line_sha256`.
 
 **Horae's own output is not read back** (`tasksink.horae_output`): a line in an owned
-block, or in an owned note (`*.assistant.md`), is skipped (counted in `horae_output`), unless
-it ends with a `^h-` block id the index maps, i.e. Horae's Tasks writer wrote it for a
-`task.create` (those are returned with their `source_fingerprint`, e.g. `github:pr:42`, so a
-consumer can tell them from the user's tasks and dedupe them against the live source).
+block is skipped (counted in `horae_output`), and so is a line in an owned note
+(`*.assistant.md`) unless the index records that Horae's Tasks writer wrote exactly that line
+in that note for a `task.create` (path and line SHA-256: a `^h-` block id alone is a public
+hash and proves nothing). Those are returned with their `source_fingerprint`, e.g.
+`github:pr:42`, so a consumer can tell them from the user's tasks and dedupe them against the
+live source. Skipped lines do not count as duplicates of the others.
 Otherwise an LLM-written note, or a prompt injection it obeyed, would come back the next day
 as the user's own task. The sink refuses the same lines.
 
@@ -39,7 +41,7 @@ from horae_sdk import tasks as sdk_tasks
 
 from horae_obsidian.index import TaskIndex
 from horae_obsidian.tasks import Task, json_safe
-from horae_obsidian.tasksink import horae_output
+from horae_obsidian.tasksink import eligible_keys, horae_output
 from horae_obsidian.vault import VaultError, safe_path, scan
 
 REF = "obsidian.open_tasks"
@@ -118,21 +120,23 @@ def open_tasks(paths: Paths, *, limit: int = 500) -> dict[str, Any]:
     except VaultError as error:
         raise PluginError(str(error)) from None
     try:
-        fingerprints = TaskIndex(vault).read().fingerprints()
+        links = TaskIndex(vault).read().links
         index_error = None
     except Exception as error:  # the index only adds fingerprints: never fails the source
-        fingerprints, index_error = {}, getattr(error, "kind", type(error).__name__)
+        links, index_error = {}, getattr(error, "kind", type(error).__name__)
+    fingerprints = {block: link.fingerprint for block, link in links.items()}
     tasks: list[Task] = []
     withheld: list[dict[str, Any]] = []
     own_output = 0
+    counts = eligible_keys(found, links)
     for document in found.documents:
         for task in document.tasks:
             if not task.is_open:
                 continue
-            if horae_output(task, fingerprints):
+            if horae_output(task, links):
                 own_output += 1
                 continue
-            if found.known_unique(task):
+            if found.known_unique(task, counts):
                 tasks.append(task)
                 continue
             withheld.append(
@@ -140,7 +144,7 @@ def open_tasks(paths: Paths, *, limit: int = 500) -> dict[str, Any]:
                     "key": task.key,
                     "path": safe_path(task.path),
                     "line": task.line.number,
-                    "reason": "duplicate_key" if not task.key_unique else "uniqueness_unknown",
+                    "reason": ("duplicate_key" if counts[task.key] != 1 else "uniqueness_unknown"),
                 }
             )
     tasks.sort(key=_order)
