@@ -4,7 +4,7 @@
 
 Horae plugin: read and write an Obsidian vault (Obsidian Tasks syntax), owning only its own files and blocks.
 
-> 🚧 **In progress.** The Tasks parser and the note sink are in; the Tasks source and the task sink are not, so there is nothing to install yet. Follow progress on the [Horae roadmap project](https://github.com/orgs/horae-dev/projects/1).
+> 🚧 **In progress.** The Tasks parser, the note sink, the `obsidian.open_tasks` source and the task sink are in; nothing is released yet. Follow progress on the [Horae roadmap project](https://github.com/orgs/horae-dev/projects/1).
 
 ## What this plugin will do
 
@@ -22,12 +22,15 @@ a note ends in lower-case `.md` (`.MD` is ignored).
   blockquotes and callouts; not in frontmatter, fenced code or `%%` comment blocks. The
   checkbox rule is the Tasks plugin's: spaces (not tabs) after the marker, then `[c]` and
   the body, so `- [x]x` is a task. Statuses `[ ]` `[x]` `[X]` `[/]` `[-]`; any other
-  character is kept as `custom` (whether a custom status is open or closed is #4's call).
+  character is kept as `custom`, which counts as **open** (the Tasks plugin treats a status
+  it does not know as a to-do).
 - **Fields**, read from the end of the line as the Tasks plugin does, with or without U+FE0F:
   📅 📆 🗓 due, ⏳ ⌛ scheduled, 🛫 start, ➕ created, ✅ done, ❌ cancelled, 🔁 recurrence,
   🔺 ⏫ 🔼 🔽 ⏬ priority, 🆔 id, ⛔ depends on, 🏁 on completion, and the ⏰ reminder (Horae's
   `⏰ HH:MM` on the due date, or the Reminder plugin's `⏰ YYYY-MM-DD HH:MM`; `⏰ 9:00` and
-  `⏰ 09:00:00` stay text). The set is the SDK's (`horae_sdk.tasks.SIGNIFIERS`); a test keeps
+  `⏰ 09:00:00` stay text), read **before** the Tasks dates (Horae's order since horae-sdk
+  0.3) as well as after them (0.1 and 0.2). The set is the SDK's
+  (`horae_sdk.tasks.SIGNIFIERS`); a test keeps
   them equal. A 🆔, ⛔ or `^block-id` value longer than 128 characters is text.
 - **Tags** (`#tag`, not in inline code, `%%` comments, wikilinks, Markdown links, autolinks
   or bare URLs) and **hidden ids** (`🆔 id`, `^block-id`). The masking is Horae's own: the
@@ -59,6 +62,7 @@ a note ends in lower-case `.md` (`.MD` is ignored).
 | The task has | Key | Scope |
 |---|---|---|
 | a valid `🆔 id` | `obsidian:id:<id>` | the vault |
+| else Horae's block id `^h-<12 hex>` | `obsidian:horae:h-<12 hex>` | the vault |
 | else a `^block-id` | `obsidian:block:<path>:<block-id>` | the note |
 | else | `obsidian:task:<path>:<digest>:<n>` | the note |
 
@@ -71,34 +75,141 @@ a part, the key falls back to the digest form.
 **Keeps the key**: changing the status, ticking or unticking (`tick` / `untick`), adding,
 changing or removing dates, the reminder, the priority, recurrence, ⛔ or 🏁 fields; moving a
 trailing tag among the fields; lines added or removed above (for 🆔 and block ids: anywhere,
-and for 🆔: moving the task to another note).
+and for 🆔 and `^h-`: editing the text, moving the task to another note).
 
 **Changes the key**: editing the description (text or a tag inside it; trailing tags are
 part of it), adding, changing or removing the 🆔 or the block id, renaming or moving the note
 (digest and block keys), and, for digest keys, adding or removing an earlier task with the
 same description in the note (its occurrence `<n>` moves).
 
-**Collisions** (the same 🆔 in two notes, the same block id twice in a note, NFC-equal paths)
-are flagged: `Task.key_unique` is false and the key is in `Document.duplicate_keys` /
-`Scan.duplicate_keys`. #4's source will withhold such tasks and report them.
+**Collisions** (the same 🆔 or `^h-` in two notes, the same block id twice in a note,
+NFC-equal paths) are flagged: `Task.key_unique` is false and the key is in
+`Document.duplicate_keys` / `Scan.duplicate_keys`. Those only cover the notes read:
+`Scan.keys_complete` is false when the scan was truncated or skipped any note, and
+`Scan.known_unique(task)` fails closed (a vault-scoped key is only known unique after a
+complete scan; a note-scoped key, whose note was read whole, unless the scan was truncated or
+skipped a path equal to it in NFC). A result of `iter_scan` is **never** vault-unique.
 
 For compare-and-swap writes, `Task.line_sha256` hashes the line's exact bytes and
 `Document.sha256`, `size`, `mtime_ns` and `ino` describe the note as read.
 
-**Open questions for the maintainer (before #4)**
+## Open tasks and task status (#4)
 
-1. **A hidden Horae link.** Digest keys move when the description is edited; the options for a
-   link that survives it are a block id `^h-<hash>`, a `🆔 h-<hash>` (also a Tasks
-   dependency id), an inline `%% horae:<fingerprint> %%` comment, or state kept on the plugin
-   side. Whether to write one, and the alias scheme for keys that change, is decided with
-   #4.
-2. **Completing a recurring task.** The Tasks plugin inserts the next occurrence above the
-   ticked one; `Task.tick` refuses a recurring task (`RecurringTaskError`) until #4 decides
-   the policy.
-3. **⏰ and the Tasks plugin.** Tasks reads fields from the end of the line and may stop at a
-   signifier it does not know, so in `📅 2026-10-22 ⏰ 19:00` (the order of
-   `horae_sdk.tasks.task_line`) Tasks queries might not see the due date. To be verified in a
-   real vault; if so, `task_line` should write `⏰` before the dates.
+Horae's Tasks writer ends every task line it creates with the block id
+`^h-<12 hex of SHA-256(fingerprint)>` (horae-sdk `task_block_id`) and keeps a
+`hash → fingerprint` index; `⏰` goes before the Tasks dates (so the real Tasks plugin, which
+reads fields from the end and stops at a signifier it does not know, still sees `📅`; both
+orders are read). The lines are horae-sdk 0.3's `task_line(..., fingerprint=)`.
+
+**`obsidian.open_tasks`** (source; parameters `limit`, default 500, at most 2000, and
+`open_statuses`, default `" /"`) scans the vault (budgets above) and returns the open tasks
+by due date: `key`, `source_fingerprint`, description, status, note path and line,
+`line_sha256`, heading, due / scheduled / start, reminder, `snoozed_until` / `snoozed`, tags,
+the `[link](…)` (Horae's tasks only), priority, recurrence, 🆔, block id and `edited`,
+JSON-safe. Alongside: `withheld` (a key that is a duplicate, `duplicate_key`, or not known
+unique, `uniqueness_unknown`), `hidden` (Horae's output, with note, line and reason; counted in
+`horae_output`), `edited_horae_tasks` (Horae's tasks edited in Obsidian, still listed),
+`not_open_statuses` (theme statuses not counted as open), `skipped`, `truncated`, `complete`,
+`index`, and `more` / `output_cut` (at most 4 MiB of JSON). None of these fails the run. The
+source writes nothing.
+
+**`obsidian.write_task`** (sink, an `act` entry with `mode: tasks`; parameters `note`,
+default `Tasks.assistant.md`, and `recreate_after_days`, default 30; `link_prefix` and other
+routing parameters are accepted and not checked again: the core checked them) applies:
+
+- `task.update_status`. `task` is a key from `open_tasks`, or the fingerprint of the
+  `task.create` that wrote the task. A fingerprint (or an `obsidian:horae:` key) is looked
+  up in its writer note, read alone; otherwise the vault is scanned. Refused, changing
+  nothing: no such task (`task_not_found`), several, or one not shown unique
+  (`task_ambiguous`), Horae's output, snoozing a closed task (`task_closed`), and a note
+  changed under it (`target_changed`). Once located, the note is read again, the task found
+  again by key and line digest, and that note's fresh SHA-256 is the compare-and-swap value
+  (tried once more on `target_changed`). **Only that line changes**: `done` sets `[x]` and
+  `✅ YYYY-MM-DD` (today in the instance time zone, the `TZ` the core sets), `cancelled` `[-]`
+  and `❌ YYYY-MM-DD`, `todo` reopens a closed task (`[ ]`, both dates removed) and leaves an
+  open one as it is, `snoozed` writes the core's `until` as Horae's reminder before the Tasks
+  dates (`⏰ YYYY-MM-DD`, or `⏰ YYYY-MM-DD HH:MM` in the instance time zone by its rules at
+  that date, rounded up to the minute). A task already in that state, and a recurring task
+  asked `done` or `cancelled`, is left alone (`changed: false`; `recurring: "tick in
+  Obsidian"`). The details record the note, the line and both line digests.
+- `task.create`. The line is appended to the entry's `note` (an owned note only, `not_owned`),
+  created when missing, under the index lock, then the index entry is written. It is not
+  written again while the fingerprint's task is in the vault (in its writer note, edited or
+  not, or moved or copied to another note); an unindexed line with its block id in the writer
+  note is adopted (`adopted`); a task the user deleted is `dismissed` for
+  `recreate_after_days`. When the scan did not read every note, it is still created, with
+  `dedupe_complete: false` and a `dedupe_warning`.
+
+**The index** is `.horae/obsidian-tasks.json` in the vault (the hidden folder the scan skips),
+mode 0700, written atomically under an exclusive `flock` (`index_busy` after 8 s). An entry is
+used only when its block id is the hash of its fingerprint. Corrupt content starts over;
+another `format`, a symbolic link or an unreadable file is `index_unavailable` for the sink,
+and the source reports it (`index`) without failing.
+
+### Decisions
+
+Recorded from the review of #4 (maintainer: "go with what's good for the project").
+
+1. **Losing the index** (deleted, corrupt, restored from an old backup) hides the Horae tasks
+   of the writer notes (`hidden`, reason `unverified_line`) and makes `task.update_status` by
+   fingerprint `task_not_found`, until the next `task.create` of that fingerprint: an
+   unverified `^h-<block>` line for that exact block in the writer's note is **adopted** (the
+   core's intent proves fingerprint → hash), its index entry rewritten, `changed: false`.
+   Several such lines: `task_unadoptable` (keep one). Nothing is written twice.
+2. **Writer notes are writer-exclusive.** `Tasks.assistant.md` and every note the index
+   records a task (or a tombstone) in are refused to note intents and their undo
+   (`tasks_note`). Inside a writer note, a line whose `^h-` block id the index maps to that
+   note is Horae's task, edited in Obsidian or not (no line-digest requirement): ticking or
+   re-dating it there no longer hides it. Other owned notes are LLM output, never read back.
+   `open_tasks` lists hidden lines (`hidden`) and edited Horae tasks (`edited_horae_tasks`)
+   with note and line, so nothing disappears silently. A **copy** of a Horae line in a user
+   note (same block id) while the writer note holds it is a plain user task keyed by its own
+   note (`obsidian:block:<note>:h-…`): not ambiguous, not found by the fingerprint. A line
+   **moved** out of the writer note keeps the link.
+3. **Time zone rules**: date-times are converted with the zone `TZ` names
+   (`ZoneInfo`), else the process's local rules, never the offset of the current moment
+   (a July snooze written in November is at summer time).
+4. **`snoozed` on a closed task** (done, cancelled) is refused (`task_closed`); reopening stays
+   an explicit `todo`.
+5. **`todo` on an open task** (any open status, `[/]` and a theme's statuses included) is a
+   no-op: its status is kept.
+6. **One note read**: after locating, only the target note is read again for the write
+   (fresh SHA-256 as the compare-and-swap value, one retry on `target_changed`); a fingerprint
+   is found through the index path without a scan. On 5,000 notes: 0.64 s → 1 ms by
+   fingerprint; by key, still a scan (0.65 s), with the race window down to one note read.
+7. **Trust limit.** The index is checked (the block id must be the hash of its fingerprint),
+   not signed: anyone with write access to the vault, `.horae/` included (through sync), can
+   make a line Horae's output or Horae's task. The vault-write boundary is the trust limit.
+   The index stays in the vault: it must travel with the vault for restores. The block id has
+   48 bits: two fingerprints colliding is about 2e-5 at 100,000 tasks, and the index refuses
+   a second fingerprint on a known block id (`block_collision`); a second preimage (a chosen
+   fingerprint hitting a given block id) costs about 2^48 hashes, and only lets a vault
+   writer do what vault write access already allows.
+8. **Pruning**: an index entry whose line still exists is never dropped; past 20,000 entries,
+   entries whose line was not seen are dropped, oldest first.
+9. **Relinking**: after a status change the index records the line's new digest, tried twice;
+   when it still fails (`index: "stale"`), the line is only reported as `edited` (ownership
+   does not depend on the digest) and the next change re-records it.
+10. **No line text in `Applied.details`** (digests only) until the core wires task undo;
+    `restore_status` takes the replaced line from the caller.
+11. **Tombstones**: when an indexed task line is gone from the vault (seen by a complete scan
+    during a `task.create`), it becomes a tombstone; `task.create` of that fingerprint is
+    `dismissed` for `recreate_after_days` (default 30), then written again.
+12. **Bounded output**: at most 4 MiB of JSON (`output_cut`, `more`).
+13. **Links**: `link` is reported for Horae's tasks only (a hand-written `[link](…)` is
+    text); the SDK's `task_line` renders it (`link_destination`); `link_prefix` is not checked
+    again. `plugin.yaml` keeps `horae: >=0,<0.2`, like the other plugins.
+14. **Snoozes**: `snoozed_until` is a `⏰` date or date-time still in the future, `snoozed`
+    its boolean; consumers decide (the reminders pack skips snoozed tasks).
+15. **Recurring tasks**: `done` / `cancelled` change nothing and say `recurring: "tick in
+    Obsidian"` (Horae never ends a recurrence) instead of failing the run.
+16. **Custom statuses**: open means `[ ]` and `[/]` unless `open_statuses` lists more; the
+    others are counted in `not_open_statuses`.
+17. **Withheld and hidden** tasks are reported (`withheld`, `hidden`, counts), never a failed
+    run.
+
+**Limits.** A note whose path holds `:` or `\` is read but not written (`path_invalid`). A
+`task.update_status` by key scans the whole vault.
 
 ## Writing notes (#3)
 

@@ -31,7 +31,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
-from horae_obsidian.tasks import Document, parse
+from horae_obsidian.tasks import Document, Task, parse
 
 MAX_NOTE_BYTES = 4 * 1024 * 1024
 MAX_NOTES = 10_000
@@ -96,8 +96,38 @@ class Scan:
     """True when the scan stopped early: more than `max_notes` notes, or notes left unread
     past `max_total_bytes` or `max_total_tasks` (listed in `skipped` as `budget`)."""
     duplicate_keys: tuple[str, ...] = ()
-    """Task keys held by more than one task of the vault (those tasks are not
-    `key_unique`): two notes with the same 🆔, or the same block id in one note."""
+    """Task keys held by more than one task of the notes read (those tasks are not
+    `key_unique`): two notes with the same 🆔 or Horae block id, or the same block id in one
+    note. Only the notes read: see `keys_complete`."""
+
+    @property
+    def keys_complete(self) -> bool:
+        """Whether every note of the vault was read: not truncated, nothing skipped (a
+        budget, a note too large or too deep, a symbolic link, an unreadable or internal
+        error). When false, a duplicate 🆔 or block id may sit in a note the scan never read,
+        so `key_unique` proves nothing for a vault-scoped key (see `known_unique`)."""
+        return not self.truncated and not self.skipped
+
+    def known_unique(self, task: Task, counts: Counter[str] | None = None) -> bool:
+        """Whether `task`'s key is shown to be unique in the vault (fail closed).
+
+        - Not `key_unique` (or, given `counts`, the tasks a caller considers hold its key
+          more than once: a source that ignores some lines counts only the others): no.
+        - A vault-scoped key (🆔, Horae's block id: `Task.vault_scoped`): only when
+          `keys_complete`.
+        - A note-scoped key (another block id, a digest) names its note's NFC path: the note
+          was read whole, so only another note with the same NFC path could hold it. That is
+          ruled out unless the scan was truncated (notes never listed) or skipped a path
+          equal to it in NFC."""
+        unique = task.key_unique if counts is None else counts[task.key] == 1
+        if not unique:
+            return False
+        if task.vault_scoped:
+            return self.keys_complete
+        if self.truncated:
+            return False
+        mine = unicodedata.normalize("NFC", safe_path(task.path))
+        return all(unicodedata.normalize("NFC", s.path) != mine for s in self.skipped)
 
 
 def note_parts(path: str) -> list[str]:
@@ -201,7 +231,9 @@ def iter_scan(
 ) -> Iterator[Document | Skipped]:
     """Every note of `vault` (each directory's notes by name, then its subdirectories),
     parsed, or `Skipped`, one at a time: at most one note is held. Keys are checked for
-    duplicates within each note only (`scan` checks the whole vault). When it stops at
+    duplicates within each note only, so a result of `iter_scan` is **never** vault-unique:
+    `key_unique` there says nothing about other notes (`scan` checks every note it read, and
+    `Scan.keys_complete` says whether that was the whole vault). When it stops at
     `max_notes`, the last item is `Skipped("", "truncated")`. `VaultError` if `vault` is
     not a readable directory."""
     root = _open_vault(vault)

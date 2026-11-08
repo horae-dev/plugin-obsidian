@@ -7,13 +7,18 @@ horae: '>=0,<0.2'
 description: Reads and writes an Obsidian vault in Obsidian Tasks syntax.
 license: Apache-2.0
 provides:
+  sources:
+  - obsidian.open_tasks
   sinks:
   - obsidian.write_note
+  - obsidian.write_task
 permissions:
   intents:
   - note.create
   - note.append_section
   - note.replace_owned_block
+  - task.create
+  - task.update_status
 runtime:
   protocol: mcp-stdio
   command:

@@ -2,19 +2,22 @@
 """The plugin: reads and writes an Obsidian vault in Obsidian Tasks syntax.
 
 The core's plugin host starts this module as an MCP server over stdio (`python -m
-horae_obsidian`). It provides the `obsidian.write_note` sink (`horae_obsidian.sink`, #3): the
-core's bytes for `note.*` intents, written into owned files and blocks only. The Tasks parser
-(`horae_obsidian.tasks`) and the safe vault reader (`horae_obsidian.vault`) are what the
-`obsidian.open_tasks` source and the `task.update_status` sink (#4) build on. The plugin
-never writes anything outside its sinks: it returns data and proposes intents, which the core
-checks against `plugin.yaml`'s permissions, shows as a dry-run diff and applies.
+horae_obsidian`). It provides the `obsidian.open_tasks` source (`horae_obsidian.source`, #4:
+the vault's open tasks), the `obsidian.write_note` sink (`horae_obsidian.sink`, #3: the
+core's bytes for `note.*` intents, written into owned files and blocks only) and the
+`obsidian.write_task` sink (#4: `task.update_status` edits one task line, `task.create`
+appends one to an owned note). The plugin never writes anything outside its sinks: it returns
+data, and the core checks the intents against `plugin.yaml`'s permissions, shows them as a
+dry-run diff and applies them.
 """
 
 from typing import Any
 
-from horae_sdk import Permissions, Plugin
+from horae_sdk import Call, Permissions, Plugin
 
-from horae_obsidian.sink import TOOL, VaultSink
+from horae_obsidian import source
+from horae_obsidian.sink import TASK_TOOL, TOOL, VaultSink
+from horae_obsidian.tasksink import TASK_TYPES
 from horae_obsidian.writer import NOTE_TYPES
 
 NAME = "obsidian"
@@ -24,21 +27,28 @@ VERSION = "0.1.0"
 COMMAND = ["python3", "-m", "horae_obsidian"]
 """`runtime.command` of `plugin.yaml`. When installing, pin an absolute interpreter that has
 this package (the host's `PATH` is fixed and its working directory empty)."""
-PERMISSIONS = Permissions(intents=list(NOTE_TYPES))
-"""The note intents `obsidian.write_note` applies. No path: where the vault is is the user's
-choice, granted as the single `paths.write` entry in `horae.lock` (as for the core's
-`file-sink`); the core passes it with every sink operation."""
+PERMISSIONS = Permissions(intents=[*NOTE_TYPES, *TASK_TYPES])
+"""The note and task intents the sinks apply (the plugin proposes none). No path: where the
+vault is is the user's choice, granted as the single `paths.write` entry in `horae.lock` (as
+for the core's `file-sink`); the core passes it with every call."""
 
 
 def build() -> Plugin:
-    """The plugin, with the `obsidian.write_note` sink."""
+    """The plugin, with the `obsidian.open_tasks` source and the vault sinks."""
     plugin = Plugin(
         NAME,
         version=VERSION,
         permissions=PERMISSIONS,
         description="Reads and writes an Obsidian vault in Obsidian Tasks syntax.",
     )
-    plugin.add(VaultSink([TOOL]))
+
+    @plugin.source(source.REF)
+    def open_tasks(
+        call: Call, limit: int = 500, open_statuses: str = source.DEFAULT_OPEN_STATUSES
+    ) -> dict[str, Any]:
+        return source.open_tasks(call.paths, limit=limit, open_statuses=open_statuses)
+
+    plugin.add(VaultSink([TOOL, TASK_TOOL]))
     return plugin
 
 

@@ -33,7 +33,7 @@ def wire_paths(vault: Path) -> dict[str, list[str]]:
 
 def test_sink_operations_through_the_sdk_harness(tmp_path: Path) -> None:
     plugin, paths = build(), wire_paths(tmp_path)
-    assert plugin.sinks[NAME].tools == (f"{NAME}.write_note",)
+    assert plugin.sinks[NAME].tools == (f"{NAME}.write_note", f"{NAME}.write_task")
 
     async def scenario() -> list[dict[str, Any]]:
         intent = {"type": "note.create", "path": NOTE, "content": "# Brief"}
@@ -89,6 +89,9 @@ def test_serves_the_sink_over_stdio(tmp_path: Path) -> None:
     """The sink operations are listed (not provided: no pipeline step can call them) and
     `apply` writes the core's bytes."""
     tools, applied, written = anyio.run(serve, tmp_path)
-    assert {tool for tool in tools if tool.startswith(f"{NAME}.")} == OPERATIONS
+    assert {tool for tool in tools if tool.startswith(f"{NAME}.")} == {
+        *OPERATIONS,
+        f"{NAME}.open_tasks",
+    }
     assert applied == {"target": NOTE, "after_sha256": sha(b"hi\n")}
     assert written == b"hi\n"
