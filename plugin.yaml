@@ -9,6 +9,8 @@ license: Apache-2.0
 provides:
   sources:
   - obsidian.open_tasks
+  transforms:
+  - obsidian.reminders
   sinks:
   - obsidian.write_note
   - obsidian.write_task
@@ -19,6 +21,7 @@ permissions:
   - note.replace_owned_block
   - task.create
   - task.update_status
+  - notify.push
 runtime:
   protocol: mcp-stdio
   command:

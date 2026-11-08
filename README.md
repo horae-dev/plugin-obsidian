@@ -4,7 +4,7 @@
 
 Horae plugin: read and write an Obsidian vault (Obsidian Tasks syntax), owning only its own files and blocks.
 
-> 🚧 **In progress.** The Tasks parser, the note sink, the `obsidian.open_tasks` source and the task sink are in; nothing is released yet. Follow progress on the [Horae roadmap project](https://github.com/orgs/horae-dev/projects/1).
+> 🚧 **In progress.** The Tasks parser, the note sink, the `obsidian.open_tasks` source, the task sink and the `obsidian.reminders` transform are in; nothing is released yet. Follow progress on the [Horae roadmap project](https://github.com/orgs/horae-dev/projects/1).
 
 ## What this plugin will do
 
@@ -252,6 +252,49 @@ the same conventions as its dry-run diff) and calls the sink operations `obsidia
   the directory `fsync`ed, the note's permission bits kept; a failure leaves the note as it
   was. As for the core's own `file-sink`, an editor or sync client writing the same note at
   that very moment can still lose its write.
+
+## Reminders: the `obsidian.reminders` transform (#9)
+
+A deterministic transform for [pack-reminders](https://github.com/horae-dev/pack-reminders)'
+`remind` pipeline: it turns the collected `obsidian.open_tasks` data into `notify.push`
+intents, with no LLM, no clock (the pipeline passes `{{now}}` and `{{timezone}}`), no
+network, secret or path. `notify.push` is in `permissions.intents` because the transform
+proposes it; a notifier (plugin-ntfy) applies it. The rules are in the module docstring of
+[`reminders.py`](src/horae_obsidian/reminders.py).
+
+| Parameter | Meaning |
+|---|---|
+| `now` | Required. The run's start, RFC 3339 with an offset: `"{{now}}"` |
+| `timezone` | Required. IANA zone of the wall-clock times: `"{{timezone}}"` |
+| `window_minutes` | 1 to 720, default 60: the lookback. Every run proposes what falls in `(now − window, now]`, so a missed run is caught up; the notifier's daily dedupe drops the repeats. Must be at least the cron interval (the operator's choice) |
+| `digest_at` | `"HH:MM"`; omitted: no digest. Proposed by every run whose lookback holds it (today's or yesterday's, across midnight) |
+| `overdue_at` | `"HH:MM"`; omitted: no overdue nudge |
+| `overdue_for_minutes` | 1 to 1440, default 60: how long nudges are proposed from `overdue_at` |
+| `max_overdue` | 0 to 100, default 10: nudges per run, and overdue lines in the digest |
+| `quiet_hours` | `{start: "HH:MM", end: "HH:MM"}`, the notifier's: a task whose reminder fell in them before the digest is left out of it (its own delayed push arrives then) |
+
+An unknown or invalid parameter fails the call; a malformed task is skipped and counted.
+
+- **`⏰` reminders**: `⏰ 2026-11-09 14:30` / `Call the plumber`. The date is in the title, so a
+  daily recurring reminder is a new push each day. A bare `⏰ HH:MM` is that time on the due
+  date (no due date: no reminder). DST: a skipped time fires at the first instant after the
+  gap, a repeated one at its first occurrence (the core scheduler's rule).
+- **Snoozed** is recomputed from the `⏰` and `now`; the source's `snoozed` is only a hint.
+- **The digest** (`Today, 2026-11-09`): `Overdue: N` and the oldest `max_overdue`, then
+  `Today: N`, by reminder time, then the rest due that day. At most 3,800 UTF-8 bytes, never
+  cut mid-line; `Some tasks could not be read` when the source left tasks out (`more`,
+  `output_cut`, `withheld`, `hidden`, `skipped`).
+- **Overdue nudges** (`Overdue: due 2026-11-08`): only the tasks that became overdue (due the
+  day before); older ones are in the digest only.
+- **Text**: Markdown links become their text, `#tags` are dropped, the description is one
+  line of at most 200 characters, cut on a word boundary. Two pushes of one run with the same
+  text get a short stable suffix from their task keys (` · 3fa2`).
+
+**Golden vectors** for consumers ship in the package
+(`horae_obsidian.vectors.reminder_vectors()`, `src/horae_obsidian/vectors/reminders.json`):
+pack-reminders runs them too. Regenerate after a deliberate change of behaviour with
+`uv run python tests/data/reminder_vectors.py > src/horae_obsidian/vectors/reminders.json`
+and review the diff.
 
 ## Planned work
 
