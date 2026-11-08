@@ -324,6 +324,44 @@ def test_quiet_hour_reminders_are_left_out_of_the_digest() -> None:
     assert "Early" in pushes("07:00", early, late, quiet_hours=elsewhere)[0][1]
 
 
+DROP = {**QUIET, "during": "drop"}
+
+
+def test_with_drop_a_night_reminder_is_in_the_digest_and_has_no_push_of_its_own() -> None:
+    night = task("Night", due=TODAY, reminder={"date": None, "time": "03:00"})
+    late = task("Late", due=TODAY, reminder={"date": None, "time": "09:00"})
+    # Proposed at 03:00 (quiet): nothing to drop, so nothing proposed.
+    assert pushes("03:00", night, late, quiet_hours=DROP) == []
+    # Still nothing when the run is the one after: no individual push in quiet hours.
+    (digest,) = pushes("07:00", night, late, quiet_hours=DROP)
+    assert digest[1] == "During quiet hours: 1\n- ⏰ 03:00 Night\nToday: 1\n- 09:00 Late"
+    # `delay` (explicit or default) keeps today's behaviour: its own delayed push.
+    delayed = {**QUIET, "during": "delay"}
+    assert pushes("03:00", night, quiet_hours=delayed)[0][0] == f"⏰ {TODAY} 03:00"
+    assert pushes("07:00", night, late, quiet_hours=delayed)[0][1] == "Today: 1\n- 09:00 Late"
+
+
+def test_with_drop_only_the_night_since_the_previous_digest_is_listed() -> None:
+    old = task("Old", due=YESTERDAY, reminder={"date": None, "time": "23:00"})
+    (digest,) = pushes("07:00", old, quiet_hours=DROP)
+    assert digest[1] == "During quiet hours: 1\n- ⏰ 23:00 Old"
+    # A reminder before the previous digest (yesterday 06:00 is quiet, but 25h earlier) is not.
+    older = task("Older", reminder={"date": YESTERDAY, "time": "06:00"}, due=YESTERDAY)
+    assert "quiet" not in pushes("07:00", older, quiet_hours=DROP)[0][1]
+
+
+def test_with_drop_a_daytime_reminder_is_still_pushed() -> None:
+    noon = task("Noon", due=TODAY, reminder={"date": None, "time": "12:00"})
+    assert pushes("12:00", noon, quiet_hours=DROP) == [(f"⏰ {TODAY} 12:00", "Noon")]
+
+
+def test_quiet_hours_during_is_validated() -> None:
+    with pytest.raises(ReminderError, match="during"):
+        parse_params(params("07:00", quiet_hours={**QUIET, "during": "mute"}))
+    assert parse_params(params("07:00", quiet_hours=DROP)).quiet_drops
+    assert not parse_params(params("07:00", quiet_hours=QUIET)).quiet_drops
+
+
 # --- overdue nudges -------------------------------------------------------------------------
 
 

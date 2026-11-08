@@ -271,7 +271,7 @@ proposes it; a notifier (plugin-ntfy) applies it. The rules are in the module do
 | `overdue_at` | `"HH:MM"`; omitted: no overdue nudge |
 | `overdue_for_minutes` | 1 to 1440, default 60: how long nudges are proposed from `overdue_at` |
 | `max_overdue` | 0 to 100, default 10: nudges per run, and overdue lines in the digest |
-| `quiet_hours` | `{start: "HH:MM", end: "HH:MM"}`, the notifier's: a task whose reminder fell in them before the digest is left out of it (its own delayed push arrives then) |
+| `quiet_hours` | `{start: "HH:MM", end: "HH:MM", during: delay\|drop}`, the notifier's. `delay` (default): a task whose reminder fell in them before the digest is left out of it (its own delayed push arrives then). `drop`: the notifier would drop that push, so none is proposed and the digest lists the task under `During quiet hours:` |
 
 An unknown or invalid parameter fails the call; a malformed task is skipped and counted.
 
