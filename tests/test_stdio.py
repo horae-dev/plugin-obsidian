@@ -93,6 +93,7 @@ def test_serves_the_sink_over_stdio(tmp_path: Path) -> None:
         *OPERATIONS,
         f"{NAME}.open_tasks",
         f"{NAME}.reminders",
+        f"{NAME}.render_note",
     }
     assert applied == {"target": NOTE, "after_sha256": sha(b"hi\n")}
     assert written == b"hi\n"

@@ -296,6 +296,104 @@ pack-reminders runs them too. Regenerate after a deliberate change of behaviour 
 `uv run python tests/data/reminder_vectors.py > src/horae_obsidian/vectors/reminders.json`
 and review the diff.
 
+## Daily note: the `obsidian.render_note` transform (#5)
+
+A deterministic transform that lays out the assistant note: it takes the collected data
+(`obsidian.open_tasks`, a `calendar.*` source, a `github.*` source) and proposes **one**
+`note.replace_owned_block`, with no LLM, clock, network, secret or path. The daily brief's
+LLM keeps wording the summary and the ranking (`summary`, `ranked` below); this transform
+makes the structure, so the core's note-text guard (decision 55) never has to judge a
+checkbox, wikilink, `#tag` or `::`. Rules: [`render.py`](src/horae_obsidian/render.py).
+
+| Parameter | Meaning |
+|---|---|
+| `today` | Required. `YYYY-MM-DD`: `"{{date}}"`. The only notion of time (no clock is read) |
+| `block` | Owned block id, default `assistant-daily` |
+| `path` | Note path; omitted, the `act` entry's |
+| `template` | Override of the default template (below) |
+| `timezone` | IANA zone to show event times in (`"{{timezone}}"`); omitted: as the source wrote them |
+| `summary`, `ranked` | The LLM's text and `[{title, why}]`, escaped like everything else |
+| `expect` | Source refs that must have given data (`[calendar.events]`): a missing one is an alert |
+| `max_items` | 1 to 100, default 20 lines per section or task group, then `…and N more` |
+
+Tasks are grouped by due date (Overdue, Today, Tomorrow, Later, No date) and sorted, so the
+same input gives the same bytes, in any input order. An example (`today: 2026-11-09`,
+`timezone: Europe/Paris`):
+
+````markdown
+# Assistant, 2026-11-09
+
+## Alerts
+
+_None._
+
+## Focus
+
+_None._
+
+## Calendar
+
+- 09:30 Standup
+- 12:00 Lunch
+- 2026-11-10 Offsite
+
+## Tasks
+
+### Overdue (1)
+
+- Pay rent (due 2026-11-01)
+
+### Today (1)
+
+- Write report
+
+### Tomorrow (1)
+
+- Call mum
+
+### Later (1)
+
+- Plan trip (due 2026-12-01)
+
+### No date (1)
+
+- Someday
+
+## GitHub
+
+- acme/app 42 Fix the thing
+````
+
+**Untrusted text is inert.** Every task description, event title, pull request title and LLM
+string goes through the SDK's `escape_title` and is written as a plain bullet, never as a
+checkbox: it cannot become a live task, link, tag, field or signifier, and a later
+`obsidian.open_tasks` read finds no task in the note (the tests check this with this plugin's
+own parser).
+
+**Overriding the template, per instance.** Set the `template` parameter in the instance's
+pipeline. It is not read from the vault, because a vault note is not trusted configuration and
+the plugin then needs no extra path. The format is logic-less: literal text, `${name}`
+placeholders (`date`, `summary`, `focus`, `alerts`, `calendar`, `tasks`, `github`) and `$$`
+for a dollar sign; no loops, conditions or includes (`{{ }}` is the core's own parameter
+syntax). Each placeholder is replaced by its section's body, `_None._` when empty, so the
+headings are yours:
+
+```yaml
+- obsidian.render_note:
+    today: "{{date}}"
+    template: |
+      # Day ${date}
+
+      ${alerts}
+
+      ${tasks}
+```
+
+A template is refused with an error naming the reason when it has an unknown placeholder, a
+stray `$`, more than 4,000 characters, or what the guard refuses in note text (a checkbox
+line, wikilink, `#tag`, `::`, `%%`, a Tasks signifier, an owned-block marker, a code fence,
+`<%`, frontmatter, a control character). The rendered note is at most 64 KiB.
+
 ## Planned work
 
 | Milestone | Epic |
