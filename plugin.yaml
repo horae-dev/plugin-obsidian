@@ -11,6 +11,7 @@ provides:
   - obsidian.open_tasks
   transforms:
   - obsidian.reminders
+  - obsidian.render_note
   sinks:
   - obsidian.write_note
   - obsidian.write_task

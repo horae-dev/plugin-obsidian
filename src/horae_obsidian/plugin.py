@@ -6,8 +6,10 @@ horae_obsidian`). It provides the `obsidian.open_tasks` source (`horae_obsidian.
 the vault's open tasks), the `obsidian.write_note` sink (`horae_obsidian.sink`, #3: the
 core's bytes for `note.*` intents, written into owned files and blocks only) and the
 `obsidian.write_task` sink (#4: `task.update_status` edits one task line, `task.create`
-appends one to an owned note), and the `obsidian.reminders` transform
-(`horae_obsidian.reminders`, #9: `notify.push` reminders from the open tasks, no LLM). The
+appends one to an owned note), the `obsidian.reminders` transform
+(`horae_obsidian.reminders`, #9: `notify.push` reminders from the open tasks, no LLM) and the
+`obsidian.render_note` transform (`horae_obsidian.render`, #5: the assistant note from a
+template, one `note.replace_owned_block`). The
 plugin never writes anything outside its sinks: it returns data and proposes intents, and the
 core checks the intents against `plugin.yaml`'s permissions, shows them as a dry-run diff and
 applies them.
@@ -17,7 +19,7 @@ from typing import Any
 
 from horae_sdk import Call, Output, Permissions, Plugin
 
-from horae_obsidian import reminders, source
+from horae_obsidian import reminders, render, source
 from horae_obsidian.sink import TASK_TOOL, TOOL, VaultSink
 from horae_obsidian.tasksink import TASK_TYPES
 from horae_obsidian.writer import NOTE_TYPES
@@ -68,6 +70,25 @@ def build() -> Plugin:
         `obsidian.open_tasks` data (`horae_obsidian.reminders`). No clock: `now` and
         `timezone` are the pipeline's `{{now}}` and `{{timezone}}`."""
         data, intents = reminders.reminders(call.params, call.input)
+        return Output(data, intents)
+
+    @plugin.transform(render.REF)
+    def obsidian_render_note(
+        call: Call,
+        today: Any = None,
+        block: Any = None,
+        path: Any = None,
+        template: Any = None,
+        timezone: Any = None,
+        summary: Any = None,
+        ranked: Any = None,
+        expect: Any = None,
+        max_items: Any = None,
+    ) -> Output:
+        """One `note.replace_owned_block` proposal: the assistant note rendered from the
+        collected data and a logic-less template (`horae_obsidian.render`). No clock: `today`
+        is the pipeline's `{{date}}`."""
+        data, intents = render.render_note(call.params, call.input)
         return Output(data, intents)
 
     plugin.add(VaultSink([TOOL, TASK_TOOL]))
