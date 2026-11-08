@@ -1,0 +1,2751 @@
+[
+ {
+  "name": "reminder at its time",
+  "params": {
+   "now": "2026-11-09T13:30:00Z",
+   "timezone": "Europe/Paris",
+   "window_minutes": 60,
+   "digest_at": "07:00",
+   "overdue_at": "09:00",
+   "overdue_for_minutes": 60,
+   "max_overdue": 10,
+   "quiet_hours": {
+    "start": "22:00",
+    "end": "07:00"
+   }
+  },
+  "input": [
+   {
+    "source": "obsidian.open_tasks",
+    "params": {},
+    "data": {
+     "tasks": [
+      {
+       "key": "obsidian:line:Tasks.md:Call the plumber",
+       "description": "Call the plumber",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Send the insurance form",
+       "description": "Send the insurance form",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-05",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Renew the passport",
+       "description": "Renew the passport",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-08",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Book the train tickets",
+       "description": "Book the train tickets",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Read the onboarding guide",
+       "description": "Read the onboarding guide",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-20",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Take the bins out",
+       "description": "Take the bins out",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "06:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Snoozed to tomorrow",
+       "description": "Snoozed to tomorrow",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-01",
+       "reminder": {
+        "date": "2026-11-10",
+        "time": null
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Snoozed to 16:00",
+       "description": "Snoozed to 16:00",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-01",
+       "reminder": {
+        "date": "2026-11-09",
+        "time": "16:00"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Ticked",
+       "description": "Ticked",
+       "status": "done",
+       "status_char": "x",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Cancelled",
+       "description": "Cancelled",
+       "status": "cancelled",
+       "status_char": "-",
+       "due": "2026-11-08",
+       "reminder": null,
+       "snoozed": false
+      }
+     ]
+    }
+   }
+  ],
+  "intents": [
+   {
+    "type": "notify.push",
+    "body": "Call the plumber",
+    "title": "⏰ 2026-11-09 14:30"
+   }
+  ],
+  "data": {
+   "reminders": 1,
+   "digest": false,
+   "overdue": 2,
+   "overdue_nudges": 0,
+   "invalid_tasks": 0,
+   "pushes": 1
+  }
+ },
+ {
+  "name": "reminder caught up within the lookback",
+  "params": {
+   "now": "2026-11-09T14:25:00Z",
+   "timezone": "Europe/Paris",
+   "window_minutes": 60,
+   "digest_at": "07:00",
+   "overdue_at": "09:00",
+   "overdue_for_minutes": 60,
+   "max_overdue": 10,
+   "quiet_hours": {
+    "start": "22:00",
+    "end": "07:00"
+   }
+  },
+  "input": [
+   {
+    "source": "obsidian.open_tasks",
+    "params": {},
+    "data": {
+     "tasks": [
+      {
+       "key": "obsidian:line:Tasks.md:Call the plumber",
+       "description": "Call the plumber",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Send the insurance form",
+       "description": "Send the insurance form",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-05",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Renew the passport",
+       "description": "Renew the passport",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-08",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Book the train tickets",
+       "description": "Book the train tickets",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Read the onboarding guide",
+       "description": "Read the onboarding guide",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-20",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Take the bins out",
+       "description": "Take the bins out",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "06:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Snoozed to tomorrow",
+       "description": "Snoozed to tomorrow",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-01",
+       "reminder": {
+        "date": "2026-11-10",
+        "time": null
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Snoozed to 16:00",
+       "description": "Snoozed to 16:00",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-01",
+       "reminder": {
+        "date": "2026-11-09",
+        "time": "16:00"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Ticked",
+       "description": "Ticked",
+       "status": "done",
+       "status_char": "x",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Cancelled",
+       "description": "Cancelled",
+       "status": "cancelled",
+       "status_char": "-",
+       "due": "2026-11-08",
+       "reminder": null,
+       "snoozed": false
+      }
+     ]
+    }
+   }
+  ],
+  "intents": [
+   {
+    "type": "notify.push",
+    "body": "Call the plumber",
+    "title": "⏰ 2026-11-09 14:30"
+   }
+  ],
+  "data": {
+   "reminders": 1,
+   "digest": false,
+   "overdue": 2,
+   "overdue_nudges": 0,
+   "invalid_tasks": 0,
+   "pushes": 1
+  }
+ },
+ {
+  "name": "reminder past the lookback",
+  "params": {
+   "now": "2026-11-09T14:31:00Z",
+   "timezone": "Europe/Paris",
+   "window_minutes": 60,
+   "digest_at": "07:00",
+   "overdue_at": "09:00",
+   "overdue_for_minutes": 60,
+   "max_overdue": 10,
+   "quiet_hours": {
+    "start": "22:00",
+    "end": "07:00"
+   }
+  },
+  "input": [
+   {
+    "source": "obsidian.open_tasks",
+    "params": {},
+    "data": {
+     "tasks": [
+      {
+       "key": "obsidian:line:Tasks.md:Call the plumber",
+       "description": "Call the plumber",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Send the insurance form",
+       "description": "Send the insurance form",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-05",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Renew the passport",
+       "description": "Renew the passport",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-08",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Book the train tickets",
+       "description": "Book the train tickets",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Read the onboarding guide",
+       "description": "Read the onboarding guide",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-20",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Take the bins out",
+       "description": "Take the bins out",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "06:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Snoozed to tomorrow",
+       "description": "Snoozed to tomorrow",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-01",
+       "reminder": {
+        "date": "2026-11-10",
+        "time": null
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Snoozed to 16:00",
+       "description": "Snoozed to 16:00",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-01",
+       "reminder": {
+        "date": "2026-11-09",
+        "time": "16:00"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Ticked",
+       "description": "Ticked",
+       "status": "done",
+       "status_char": "x",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Cancelled",
+       "description": "Cancelled",
+       "status": "cancelled",
+       "status_char": "-",
+       "due": "2026-11-08",
+       "reminder": null,
+       "snoozed": false
+      }
+     ]
+    }
+   }
+  ],
+  "intents": [],
+  "data": {
+   "reminders": 0,
+   "digest": false,
+   "overdue": 2,
+   "overdue_nudges": 0,
+   "invalid_tasks": 0,
+   "pushes": 0
+  }
+ },
+ {
+  "name": "reminder before its time",
+  "params": {
+   "now": "2026-11-09T13:29:00Z",
+   "timezone": "Europe/Paris",
+   "window_minutes": 60,
+   "digest_at": "07:00",
+   "overdue_at": "09:00",
+   "overdue_for_minutes": 60,
+   "max_overdue": 10,
+   "quiet_hours": {
+    "start": "22:00",
+    "end": "07:00"
+   }
+  },
+  "input": [
+   {
+    "source": "obsidian.open_tasks",
+    "params": {},
+    "data": {
+     "tasks": [
+      {
+       "key": "obsidian:line:Tasks.md:Call the plumber",
+       "description": "Call the plumber",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Send the insurance form",
+       "description": "Send the insurance form",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-05",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Renew the passport",
+       "description": "Renew the passport",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-08",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Book the train tickets",
+       "description": "Book the train tickets",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Read the onboarding guide",
+       "description": "Read the onboarding guide",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-20",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Take the bins out",
+       "description": "Take the bins out",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "06:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Snoozed to tomorrow",
+       "description": "Snoozed to tomorrow",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-01",
+       "reminder": {
+        "date": "2026-11-10",
+        "time": null
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Snoozed to 16:00",
+       "description": "Snoozed to 16:00",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-01",
+       "reminder": {
+        "date": "2026-11-09",
+        "time": "16:00"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Ticked",
+       "description": "Ticked",
+       "status": "done",
+       "status_char": "x",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Cancelled",
+       "description": "Cancelled",
+       "status": "cancelled",
+       "status_char": "-",
+       "due": "2026-11-08",
+       "reminder": null,
+       "snoozed": false
+      }
+     ]
+    }
+   }
+  ],
+  "intents": [],
+  "data": {
+   "reminders": 0,
+   "digest": false,
+   "overdue": 2,
+   "overdue_nudges": 0,
+   "invalid_tasks": 0,
+   "pushes": 0
+  }
+ },
+ {
+  "name": "date-time reminder ends a snooze",
+  "params": {
+   "now": "2026-11-09T15:00:00Z",
+   "timezone": "Europe/Paris",
+   "window_minutes": 60,
+   "digest_at": "07:00",
+   "overdue_at": "09:00",
+   "overdue_for_minutes": 60,
+   "max_overdue": 10,
+   "quiet_hours": {
+    "start": "22:00",
+    "end": "07:00"
+   }
+  },
+  "input": [
+   {
+    "source": "obsidian.open_tasks",
+    "params": {},
+    "data": {
+     "tasks": [
+      {
+       "key": "obsidian:line:Tasks.md:Call the plumber",
+       "description": "Call the plumber",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Send the insurance form",
+       "description": "Send the insurance form",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-05",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Renew the passport",
+       "description": "Renew the passport",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-08",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Book the train tickets",
+       "description": "Book the train tickets",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Read the onboarding guide",
+       "description": "Read the onboarding guide",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-20",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Take the bins out",
+       "description": "Take the bins out",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "06:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Snoozed to tomorrow",
+       "description": "Snoozed to tomorrow",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-01",
+       "reminder": {
+        "date": "2026-11-10",
+        "time": null
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Snoozed to 16:00",
+       "description": "Snoozed to 16:00",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-01",
+       "reminder": {
+        "date": "2026-11-09",
+        "time": "16:00"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Ticked",
+       "description": "Ticked",
+       "status": "done",
+       "status_char": "x",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Cancelled",
+       "description": "Cancelled",
+       "status": "cancelled",
+       "status_char": "-",
+       "due": "2026-11-08",
+       "reminder": null,
+       "snoozed": false
+      }
+     ]
+    }
+   }
+  ],
+  "intents": [
+   {
+    "type": "notify.push",
+    "body": "Snoozed to 16:00",
+    "title": "⏰ 2026-11-09 16:00"
+   }
+  ],
+  "data": {
+   "reminders": 1,
+   "digest": false,
+   "overdue": 3,
+   "overdue_nudges": 0,
+   "invalid_tasks": 0,
+   "pushes": 1
+  }
+ },
+ {
+  "name": "digest at 07:00",
+  "params": {
+   "now": "2026-11-09T06:00:00Z",
+   "timezone": "Europe/Paris",
+   "window_minutes": 60,
+   "digest_at": "07:00",
+   "overdue_at": "09:00",
+   "overdue_for_minutes": 60,
+   "max_overdue": 10,
+   "quiet_hours": {
+    "start": "22:00",
+    "end": "07:00"
+   }
+  },
+  "input": [
+   {
+    "source": "obsidian.open_tasks",
+    "params": {},
+    "data": {
+     "tasks": [
+      {
+       "key": "obsidian:line:Tasks.md:Call the plumber",
+       "description": "Call the plumber",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Send the insurance form",
+       "description": "Send the insurance form",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-05",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Renew the passport",
+       "description": "Renew the passport",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-08",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Book the train tickets",
+       "description": "Book the train tickets",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Read the onboarding guide",
+       "description": "Read the onboarding guide",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-20",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Take the bins out",
+       "description": "Take the bins out",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "06:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Snoozed to tomorrow",
+       "description": "Snoozed to tomorrow",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-01",
+       "reminder": {
+        "date": "2026-11-10",
+        "time": null
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Snoozed to 16:00",
+       "description": "Snoozed to 16:00",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-01",
+       "reminder": {
+        "date": "2026-11-09",
+        "time": "16:00"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Ticked",
+       "description": "Ticked",
+       "status": "done",
+       "status_char": "x",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Cancelled",
+       "description": "Cancelled",
+       "status": "cancelled",
+       "status_char": "-",
+       "due": "2026-11-08",
+       "reminder": null,
+       "snoozed": false
+      }
+     ]
+    }
+   }
+  ],
+  "intents": [
+   {
+    "type": "notify.push",
+    "body": "Take the bins out",
+    "title": "⏰ 2026-11-09 06:30"
+   },
+   {
+    "type": "notify.push",
+    "body": "Overdue: 2\n- Send the insurance form (due 2026-11-05)\n- Renew the passport (due 2026-11-08)\nToday: 3\n- 14:30 Call the plumber\n- 16:00 Snoozed to 16:00\n- Book the train tickets",
+    "title": "Today, 2026-11-09"
+   }
+  ],
+  "data": {
+   "reminders": 1,
+   "digest": true,
+   "overdue": 2,
+   "overdue_nudges": 0,
+   "invalid_tasks": 0,
+   "pushes": 2
+  }
+ },
+ {
+  "name": "digest proposed again within the lookback",
+  "params": {
+   "now": "2026-11-09T06:55:00Z",
+   "timezone": "Europe/Paris",
+   "window_minutes": 60,
+   "digest_at": "07:00",
+   "overdue_at": "09:00",
+   "overdue_for_minutes": 60,
+   "max_overdue": 10,
+   "quiet_hours": {
+    "start": "22:00",
+    "end": "07:00"
+   }
+  },
+  "input": [
+   {
+    "source": "obsidian.open_tasks",
+    "params": {},
+    "data": {
+     "tasks": [
+      {
+       "key": "obsidian:line:Tasks.md:Call the plumber",
+       "description": "Call the plumber",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Send the insurance form",
+       "description": "Send the insurance form",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-05",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Renew the passport",
+       "description": "Renew the passport",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-08",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Book the train tickets",
+       "description": "Book the train tickets",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Read the onboarding guide",
+       "description": "Read the onboarding guide",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-20",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Take the bins out",
+       "description": "Take the bins out",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "06:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Snoozed to tomorrow",
+       "description": "Snoozed to tomorrow",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-01",
+       "reminder": {
+        "date": "2026-11-10",
+        "time": null
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Snoozed to 16:00",
+       "description": "Snoozed to 16:00",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-01",
+       "reminder": {
+        "date": "2026-11-09",
+        "time": "16:00"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Ticked",
+       "description": "Ticked",
+       "status": "done",
+       "status_char": "x",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Cancelled",
+       "description": "Cancelled",
+       "status": "cancelled",
+       "status_char": "-",
+       "due": "2026-11-08",
+       "reminder": null,
+       "snoozed": false
+      }
+     ]
+    }
+   }
+  ],
+  "intents": [
+   {
+    "type": "notify.push",
+    "body": "Overdue: 2\n- Send the insurance form (due 2026-11-05)\n- Renew the passport (due 2026-11-08)\nToday: 3\n- 14:30 Call the plumber\n- 16:00 Snoozed to 16:00\n- Book the train tickets",
+    "title": "Today, 2026-11-09"
+   }
+  ],
+  "data": {
+   "reminders": 0,
+   "digest": true,
+   "overdue": 2,
+   "overdue_nudges": 0,
+   "invalid_tasks": 0,
+   "pushes": 1
+  }
+ },
+ {
+  "name": "no digest past the lookback",
+  "params": {
+   "now": "2026-11-09T07:01:00Z",
+   "timezone": "Europe/Paris",
+   "window_minutes": 60,
+   "digest_at": "07:00",
+   "overdue_at": "09:00",
+   "overdue_for_minutes": 60,
+   "max_overdue": 10,
+   "quiet_hours": {
+    "start": "22:00",
+    "end": "07:00"
+   }
+  },
+  "input": [
+   {
+    "source": "obsidian.open_tasks",
+    "params": {},
+    "data": {
+     "tasks": [
+      {
+       "key": "obsidian:line:Tasks.md:Call the plumber",
+       "description": "Call the plumber",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Send the insurance form",
+       "description": "Send the insurance form",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-05",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Renew the passport",
+       "description": "Renew the passport",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-08",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Book the train tickets",
+       "description": "Book the train tickets",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Read the onboarding guide",
+       "description": "Read the onboarding guide",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-20",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Take the bins out",
+       "description": "Take the bins out",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "06:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Snoozed to tomorrow",
+       "description": "Snoozed to tomorrow",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-01",
+       "reminder": {
+        "date": "2026-11-10",
+        "time": null
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Snoozed to 16:00",
+       "description": "Snoozed to 16:00",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-01",
+       "reminder": {
+        "date": "2026-11-09",
+        "time": "16:00"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Ticked",
+       "description": "Ticked",
+       "status": "done",
+       "status_char": "x",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Cancelled",
+       "description": "Cancelled",
+       "status": "cancelled",
+       "status_char": "-",
+       "due": "2026-11-08",
+       "reminder": null,
+       "snoozed": false
+      }
+     ]
+    }
+   }
+  ],
+  "intents": [],
+  "data": {
+   "reminders": 0,
+   "digest": false,
+   "overdue": 2,
+   "overdue_nudges": 0,
+   "invalid_tasks": 0,
+   "pushes": 0
+  }
+ },
+ {
+  "name": "digest of a snoozed day",
+  "params": {
+   "now": "2026-11-10T06:00:00Z",
+   "timezone": "Europe/Paris",
+   "window_minutes": 60,
+   "digest_at": "07:00",
+   "overdue_at": "09:00",
+   "overdue_for_minutes": 60,
+   "max_overdue": 10,
+   "quiet_hours": {
+    "start": "22:00",
+    "end": "07:00"
+   }
+  },
+  "input": [
+   {
+    "source": "obsidian.open_tasks",
+    "params": {},
+    "data": {
+     "tasks": [
+      {
+       "key": "obsidian:line:Tasks.md:Call the plumber",
+       "description": "Call the plumber",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Send the insurance form",
+       "description": "Send the insurance form",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-05",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Renew the passport",
+       "description": "Renew the passport",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-08",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Book the train tickets",
+       "description": "Book the train tickets",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Read the onboarding guide",
+       "description": "Read the onboarding guide",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-20",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Take the bins out",
+       "description": "Take the bins out",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "06:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Snoozed to tomorrow",
+       "description": "Snoozed to tomorrow",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-01",
+       "reminder": {
+        "date": "2026-11-10",
+        "time": null
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Snoozed to 16:00",
+       "description": "Snoozed to 16:00",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-01",
+       "reminder": {
+        "date": "2026-11-09",
+        "time": "16:00"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Ticked",
+       "description": "Ticked",
+       "status": "done",
+       "status_char": "x",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Cancelled",
+       "description": "Cancelled",
+       "status": "cancelled",
+       "status_char": "-",
+       "due": "2026-11-08",
+       "reminder": null,
+       "snoozed": false
+      }
+     ]
+    }
+   }
+  ],
+  "intents": [
+   {
+    "type": "notify.push",
+    "body": "Overdue: 7\n- Snoozed to tomorrow (due 2026-11-01)\n- Snoozed to 16:00 (due 2026-11-01)\n- Send the insurance form (due 2026-11-05)\n- Renew the passport (due 2026-11-08)\n- Call the plumber (due 2026-11-09)\n- Book the train tickets (due 2026-11-09)\n- Take the bins out (due 2026-11-09)",
+    "title": "Today, 2026-11-10"
+   }
+  ],
+  "data": {
+   "reminders": 0,
+   "digest": true,
+   "overdue": 7,
+   "overdue_nudges": 0,
+   "invalid_tasks": 0,
+   "pushes": 1
+  }
+ },
+ {
+  "name": "digest says tasks were not read",
+  "params": {
+   "now": "2026-11-09T06:00:00Z",
+   "timezone": "Europe/Paris",
+   "window_minutes": 60,
+   "digest_at": "07:00",
+   "overdue_at": "09:00",
+   "overdue_for_minutes": 60,
+   "max_overdue": 10,
+   "quiet_hours": {
+    "start": "22:00",
+    "end": "07:00"
+   }
+  },
+  "input": [
+   {
+    "source": "obsidian.open_tasks",
+    "params": {},
+    "data": {
+     "tasks": [
+      {
+       "key": "obsidian:line:Tasks.md:Call the plumber",
+       "description": "Call the plumber",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Send the insurance form",
+       "description": "Send the insurance form",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-05",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Renew the passport",
+       "description": "Renew the passport",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-08",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Book the train tickets",
+       "description": "Book the train tickets",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Read the onboarding guide",
+       "description": "Read the onboarding guide",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-20",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Take the bins out",
+       "description": "Take the bins out",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "06:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Snoozed to tomorrow",
+       "description": "Snoozed to tomorrow",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-01",
+       "reminder": {
+        "date": "2026-11-10",
+        "time": null
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Snoozed to 16:00",
+       "description": "Snoozed to 16:00",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-01",
+       "reminder": {
+        "date": "2026-11-09",
+        "time": "16:00"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Ticked",
+       "description": "Ticked",
+       "status": "done",
+       "status_char": "x",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Cancelled",
+       "description": "Cancelled",
+       "status": "cancelled",
+       "status_char": "-",
+       "due": "2026-11-08",
+       "reminder": null,
+       "snoozed": false
+      }
+     ],
+     "more": 3
+    }
+   }
+  ],
+  "intents": [
+   {
+    "type": "notify.push",
+    "body": "Take the bins out",
+    "title": "⏰ 2026-11-09 06:30"
+   },
+   {
+    "type": "notify.push",
+    "body": "Overdue: 2\n- Send the insurance form (due 2026-11-05)\n- Renew the passport (due 2026-11-08)\nToday: 3\n- 14:30 Call the plumber\n- 16:00 Snoozed to 16:00\n- Book the train tickets\nSome tasks could not be read",
+    "title": "Today, 2026-11-09"
+   }
+  ],
+  "data": {
+   "reminders": 1,
+   "digest": true,
+   "overdue": 2,
+   "overdue_nudges": 0,
+   "invalid_tasks": 0,
+   "pushes": 2
+  }
+ },
+ {
+  "name": "digest withheld tasks",
+  "params": {
+   "now": "2026-11-09T06:00:00Z",
+   "timezone": "Europe/Paris",
+   "window_minutes": 60,
+   "digest_at": "07:00",
+   "overdue_at": "09:00",
+   "overdue_for_minutes": 60,
+   "max_overdue": 10,
+   "quiet_hours": {
+    "start": "22:00",
+    "end": "07:00"
+   }
+  },
+  "input": [
+   {
+    "source": "obsidian.open_tasks",
+    "params": {},
+    "data": {
+     "tasks": [
+      {
+       "key": "obsidian:line:Tasks.md:Call the plumber",
+       "description": "Call the plumber",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Send the insurance form",
+       "description": "Send the insurance form",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-05",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Renew the passport",
+       "description": "Renew the passport",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-08",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Book the train tickets",
+       "description": "Book the train tickets",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Read the onboarding guide",
+       "description": "Read the onboarding guide",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-20",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Take the bins out",
+       "description": "Take the bins out",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "06:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Snoozed to tomorrow",
+       "description": "Snoozed to tomorrow",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-01",
+       "reminder": {
+        "date": "2026-11-10",
+        "time": null
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Snoozed to 16:00",
+       "description": "Snoozed to 16:00",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-01",
+       "reminder": {
+        "date": "2026-11-09",
+        "time": "16:00"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Ticked",
+       "description": "Ticked",
+       "status": "done",
+       "status_char": "x",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Cancelled",
+       "description": "Cancelled",
+       "status": "cancelled",
+       "status_char": "-",
+       "due": "2026-11-08",
+       "reminder": null,
+       "snoozed": false
+      }
+     ],
+     "withheld": [
+      {
+       "key": "k",
+       "path": "a.md",
+       "line": 2,
+       "reason": "duplicate_key"
+      }
+     ]
+    }
+   }
+  ],
+  "intents": [
+   {
+    "type": "notify.push",
+    "body": "Take the bins out",
+    "title": "⏰ 2026-11-09 06:30"
+   },
+   {
+    "type": "notify.push",
+    "body": "Overdue: 2\n- Send the insurance form (due 2026-11-05)\n- Renew the passport (due 2026-11-08)\nToday: 3\n- 14:30 Call the plumber\n- 16:00 Snoozed to 16:00\n- Book the train tickets\nSome tasks could not be read",
+    "title": "Today, 2026-11-09"
+   }
+  ],
+  "data": {
+   "reminders": 1,
+   "digest": true,
+   "overdue": 2,
+   "overdue_nudges": 0,
+   "invalid_tasks": 0,
+   "pushes": 2
+  }
+ },
+ {
+  "name": "no digest on an empty day",
+  "params": {
+   "now": "2026-11-09T06:00:00Z",
+   "timezone": "Europe/Paris",
+   "window_minutes": 60,
+   "digest_at": "07:00",
+   "overdue_at": "09:00",
+   "overdue_for_minutes": 60,
+   "max_overdue": 10,
+   "quiet_hours": {
+    "start": "22:00",
+    "end": "07:00"
+   }
+  },
+  "input": [
+   {
+    "source": "obsidian.open_tasks",
+    "params": {},
+    "data": {
+     "tasks": [
+      {
+       "key": "obsidian:line:Tasks.md:Read the onboarding guide",
+       "description": "Read the onboarding guide",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-20",
+       "reminder": null,
+       "snoozed": false
+      }
+     ]
+    }
+   }
+  ],
+  "intents": [],
+  "data": {
+   "reminders": 0,
+   "digest": false,
+   "overdue": 0,
+   "overdue_nudges": 0,
+   "invalid_tasks": 0,
+   "pushes": 0
+  }
+ },
+ {
+  "name": "digest across midnight",
+  "params": {
+   "now": "2026-11-09T23:10:00Z",
+   "timezone": "Europe/Paris",
+   "window_minutes": 60,
+   "digest_at": "23:30",
+   "overdue_at": "09:00",
+   "overdue_for_minutes": 60,
+   "max_overdue": 10,
+   "quiet_hours": {
+    "start": "22:00",
+    "end": "07:00"
+   }
+  },
+  "input": [
+   {
+    "source": "obsidian.open_tasks",
+    "params": {},
+    "data": {
+     "tasks": [
+      {
+       "key": "obsidian:line:Tasks.md:Book the train tickets",
+       "description": "Book the train tickets",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": null,
+       "snoozed": false
+      }
+     ]
+    }
+   }
+  ],
+  "intents": [
+   {
+    "type": "notify.push",
+    "body": "Today: 1\n- Book the train tickets",
+    "title": "Today, 2026-11-09"
+   }
+  ],
+  "data": {
+   "reminders": 0,
+   "digest": true,
+   "overdue": 1,
+   "overdue_nudges": 0,
+   "invalid_tasks": 0,
+   "pushes": 1
+  }
+ },
+ {
+  "name": "nudge the task that became overdue",
+  "params": {
+   "now": "2026-11-09T08:00:00Z",
+   "timezone": "Europe/Paris",
+   "window_minutes": 60,
+   "digest_at": "07:00",
+   "overdue_at": "09:00",
+   "overdue_for_minutes": 60,
+   "max_overdue": 10,
+   "quiet_hours": {
+    "start": "22:00",
+    "end": "07:00"
+   }
+  },
+  "input": [
+   {
+    "source": "obsidian.open_tasks",
+    "params": {},
+    "data": {
+     "tasks": [
+      {
+       "key": "obsidian:line:Tasks.md:Call the plumber",
+       "description": "Call the plumber",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Send the insurance form",
+       "description": "Send the insurance form",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-05",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Renew the passport",
+       "description": "Renew the passport",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-08",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Book the train tickets",
+       "description": "Book the train tickets",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Read the onboarding guide",
+       "description": "Read the onboarding guide",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-20",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Take the bins out",
+       "description": "Take the bins out",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "06:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Snoozed to tomorrow",
+       "description": "Snoozed to tomorrow",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-01",
+       "reminder": {
+        "date": "2026-11-10",
+        "time": null
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Snoozed to 16:00",
+       "description": "Snoozed to 16:00",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-01",
+       "reminder": {
+        "date": "2026-11-09",
+        "time": "16:00"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Ticked",
+       "description": "Ticked",
+       "status": "done",
+       "status_char": "x",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Cancelled",
+       "description": "Cancelled",
+       "status": "cancelled",
+       "status_char": "-",
+       "due": "2026-11-08",
+       "reminder": null,
+       "snoozed": false
+      }
+     ]
+    }
+   }
+  ],
+  "intents": [
+   {
+    "type": "notify.push",
+    "body": "Renew the passport",
+    "title": "Overdue: due 2026-11-08"
+   }
+  ],
+  "data": {
+   "reminders": 0,
+   "digest": false,
+   "overdue": 2,
+   "overdue_nudges": 1,
+   "invalid_tasks": 0,
+   "pushes": 1
+  }
+ },
+ {
+  "name": "nudge again within its hour",
+  "params": {
+   "now": "2026-11-09T08:59:00Z",
+   "timezone": "Europe/Paris",
+   "window_minutes": 60,
+   "digest_at": "07:00",
+   "overdue_at": "09:00",
+   "overdue_for_minutes": 60,
+   "max_overdue": 10,
+   "quiet_hours": {
+    "start": "22:00",
+    "end": "07:00"
+   }
+  },
+  "input": [
+   {
+    "source": "obsidian.open_tasks",
+    "params": {},
+    "data": {
+     "tasks": [
+      {
+       "key": "obsidian:line:Tasks.md:Call the plumber",
+       "description": "Call the plumber",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Send the insurance form",
+       "description": "Send the insurance form",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-05",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Renew the passport",
+       "description": "Renew the passport",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-08",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Book the train tickets",
+       "description": "Book the train tickets",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Read the onboarding guide",
+       "description": "Read the onboarding guide",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-20",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Take the bins out",
+       "description": "Take the bins out",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "06:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Snoozed to tomorrow",
+       "description": "Snoozed to tomorrow",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-01",
+       "reminder": {
+        "date": "2026-11-10",
+        "time": null
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Snoozed to 16:00",
+       "description": "Snoozed to 16:00",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-01",
+       "reminder": {
+        "date": "2026-11-09",
+        "time": "16:00"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Ticked",
+       "description": "Ticked",
+       "status": "done",
+       "status_char": "x",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Cancelled",
+       "description": "Cancelled",
+       "status": "cancelled",
+       "status_char": "-",
+       "due": "2026-11-08",
+       "reminder": null,
+       "snoozed": false
+      }
+     ]
+    }
+   }
+  ],
+  "intents": [
+   {
+    "type": "notify.push",
+    "body": "Renew the passport",
+    "title": "Overdue: due 2026-11-08"
+   }
+  ],
+  "data": {
+   "reminders": 0,
+   "digest": false,
+   "overdue": 2,
+   "overdue_nudges": 1,
+   "invalid_tasks": 0,
+   "pushes": 1
+  }
+ },
+ {
+  "name": "no nudge after its hour",
+  "params": {
+   "now": "2026-11-09T09:00:00Z",
+   "timezone": "Europe/Paris",
+   "window_minutes": 60,
+   "digest_at": "07:00",
+   "overdue_at": "09:00",
+   "overdue_for_minutes": 60,
+   "max_overdue": 10,
+   "quiet_hours": {
+    "start": "22:00",
+    "end": "07:00"
+   }
+  },
+  "input": [
+   {
+    "source": "obsidian.open_tasks",
+    "params": {},
+    "data": {
+     "tasks": [
+      {
+       "key": "obsidian:line:Tasks.md:Call the plumber",
+       "description": "Call the plumber",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Send the insurance form",
+       "description": "Send the insurance form",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-05",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Renew the passport",
+       "description": "Renew the passport",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-08",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Book the train tickets",
+       "description": "Book the train tickets",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Read the onboarding guide",
+       "description": "Read the onboarding guide",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-20",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Take the bins out",
+       "description": "Take the bins out",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "06:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Snoozed to tomorrow",
+       "description": "Snoozed to tomorrow",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-01",
+       "reminder": {
+        "date": "2026-11-10",
+        "time": null
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Snoozed to 16:00",
+       "description": "Snoozed to 16:00",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-01",
+       "reminder": {
+        "date": "2026-11-09",
+        "time": "16:00"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Ticked",
+       "description": "Ticked",
+       "status": "done",
+       "status_char": "x",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Cancelled",
+       "description": "Cancelled",
+       "status": "cancelled",
+       "status_char": "-",
+       "due": "2026-11-08",
+       "reminder": null,
+       "snoozed": false
+      }
+     ]
+    }
+   }
+  ],
+  "intents": [],
+  "data": {
+   "reminders": 0,
+   "digest": false,
+   "overdue": 2,
+   "overdue_nudges": 0,
+   "invalid_tasks": 0,
+   "pushes": 0
+  }
+ },
+ {
+  "name": "nudges the next day",
+  "params": {
+   "now": "2026-11-10T08:00:00Z",
+   "timezone": "Europe/Paris",
+   "window_minutes": 60,
+   "digest_at": "07:00",
+   "overdue_at": "09:00",
+   "overdue_for_minutes": 60,
+   "max_overdue": 10,
+   "quiet_hours": {
+    "start": "22:00",
+    "end": "07:00"
+   }
+  },
+  "input": [
+   {
+    "source": "obsidian.open_tasks",
+    "params": {},
+    "data": {
+     "tasks": [
+      {
+       "key": "obsidian:line:Tasks.md:Call the plumber",
+       "description": "Call the plumber",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Send the insurance form",
+       "description": "Send the insurance form",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-05",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Renew the passport",
+       "description": "Renew the passport",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-08",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Book the train tickets",
+       "description": "Book the train tickets",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Read the onboarding guide",
+       "description": "Read the onboarding guide",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-20",
+       "reminder": null,
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Take the bins out",
+       "description": "Take the bins out",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "06:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Snoozed to tomorrow",
+       "description": "Snoozed to tomorrow",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-01",
+       "reminder": {
+        "date": "2026-11-10",
+        "time": null
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Snoozed to 16:00",
+       "description": "Snoozed to 16:00",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-01",
+       "reminder": {
+        "date": "2026-11-09",
+        "time": "16:00"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Ticked",
+       "description": "Ticked",
+       "status": "done",
+       "status_char": "x",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Cancelled",
+       "description": "Cancelled",
+       "status": "cancelled",
+       "status_char": "-",
+       "due": "2026-11-08",
+       "reminder": null,
+       "snoozed": false
+      }
+     ]
+    }
+   }
+  ],
+  "intents": [
+   {
+    "type": "notify.push",
+    "body": "Call the plumber",
+    "title": "Overdue: due 2026-11-09"
+   },
+   {
+    "type": "notify.push",
+    "body": "Book the train tickets",
+    "title": "Overdue: due 2026-11-09"
+   },
+   {
+    "type": "notify.push",
+    "body": "Take the bins out",
+    "title": "Overdue: due 2026-11-09"
+   }
+  ],
+  "data": {
+   "reminders": 0,
+   "digest": false,
+   "overdue": 7,
+   "overdue_nudges": 3,
+   "invalid_tasks": 0,
+   "pushes": 3
+  }
+ },
+ {
+  "name": "identical texts get a key suffix",
+  "params": {
+   "now": "2026-11-09T13:30:00Z",
+   "timezone": "Europe/Paris",
+   "window_minutes": 60,
+   "digest_at": "07:00",
+   "overdue_at": "09:00",
+   "overdue_for_minutes": 60,
+   "max_overdue": 10,
+   "quiet_hours": {
+    "start": "22:00",
+    "end": "07:00"
+   }
+  },
+  "input": [
+   {
+    "source": "obsidian.open_tasks",
+    "params": {},
+    "data": {
+     "tasks": [
+      {
+       "key": "obsidian:line:Tasks.md:Water the plants",
+       "description": "Water the plants",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:B.md:3",
+       "description": "Water the plants",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      }
+     ]
+    }
+   }
+  ],
+  "intents": [
+   {
+    "type": "notify.push",
+    "body": "Water the plants · c0f6",
+    "title": "⏰ 2026-11-09 14:30"
+   },
+   {
+    "type": "notify.push",
+    "body": "Water the plants · 6825",
+    "title": "⏰ 2026-11-09 14:30"
+   }
+  ],
+  "data": {
+   "reminders": 2,
+   "digest": false,
+   "overdue": 0,
+   "overdue_nudges": 0,
+   "invalid_tasks": 0,
+   "pushes": 2
+  }
+ },
+ {
+  "name": "a daily recurring reminder",
+  "params": {
+   "now": "2026-11-10T07:00:00Z",
+   "timezone": "Europe/Paris",
+   "window_minutes": 60,
+   "digest_at": "07:00",
+   "overdue_at": "09:00",
+   "overdue_for_minutes": 60,
+   "max_overdue": 10,
+   "quiet_hours": {
+    "start": "22:00",
+    "end": "07:00"
+   }
+  },
+  "input": [
+   {
+    "source": "obsidian.open_tasks",
+    "params": {},
+    "data": {
+     "tasks": [
+      {
+       "key": "obsidian:line:Tasks.md:Stretch",
+       "description": "Stretch",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-10",
+       "reminder": {
+        "date": null,
+        "time": "08:00"
+       },
+       "snoozed": false,
+       "recurring": true
+      }
+     ]
+    }
+   }
+  ],
+  "intents": [
+   {
+    "type": "notify.push",
+    "body": "Stretch",
+    "title": "⏰ 2026-11-10 08:00"
+   }
+  ],
+  "data": {
+   "reminders": 1,
+   "digest": false,
+   "overdue": 0,
+   "overdue_nudges": 0,
+   "invalid_tasks": 0,
+   "pushes": 1
+  }
+ },
+ {
+  "name": "spring forward: a skipped time fires after the gap",
+  "params": {
+   "now": "2026-03-29T01:00:00Z",
+   "timezone": "Europe/Paris",
+   "window_minutes": 5,
+   "digest_at": "07:00",
+   "overdue_at": "09:00",
+   "overdue_for_minutes": 60,
+   "max_overdue": 10,
+   "quiet_hours": {
+    "start": "22:00",
+    "end": "07:00"
+   }
+  },
+  "input": [
+   {
+    "source": "obsidian.open_tasks",
+    "params": {},
+    "data": {
+     "tasks": [
+      {
+       "key": "obsidian:line:Tasks.md:Check the boiler",
+       "description": "Check the boiler",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-03-29",
+       "reminder": {
+        "date": null,
+        "time": "02:30"
+       },
+       "snoozed": false
+      }
+     ]
+    }
+   }
+  ],
+  "intents": [
+   {
+    "type": "notify.push",
+    "body": "Check the boiler",
+    "title": "⏰ 2026-03-29 02:30"
+   }
+  ],
+  "data": {
+   "reminders": 1,
+   "digest": false,
+   "overdue": 0,
+   "overdue_nudges": 0,
+   "invalid_tasks": 0,
+   "pushes": 1
+  }
+ },
+ {
+  "name": "fall back: a repeated time fires at its first occurrence",
+  "params": {
+   "now": "2026-10-25T00:30:00Z",
+   "timezone": "Europe/Paris",
+   "window_minutes": 5,
+   "digest_at": "07:00",
+   "overdue_at": "09:00",
+   "overdue_for_minutes": 60,
+   "max_overdue": 10,
+   "quiet_hours": {
+    "start": "22:00",
+    "end": "07:00"
+   }
+  },
+  "input": [
+   {
+    "source": "obsidian.open_tasks",
+    "params": {},
+    "data": {
+     "tasks": [
+      {
+       "key": "obsidian:line:Tasks.md:Check the boiler",
+       "description": "Check the boiler",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-10-25",
+       "reminder": {
+        "date": null,
+        "time": "02:30"
+       },
+       "snoozed": false
+      }
+     ]
+    }
+   }
+  ],
+  "intents": [
+   {
+    "type": "notify.push",
+    "body": "Check the boiler",
+    "title": "⏰ 2026-10-25 02:30"
+   }
+  ],
+  "data": {
+   "reminders": 1,
+   "digest": false,
+   "overdue": 0,
+   "overdue_nudges": 0,
+   "invalid_tasks": 0,
+   "pushes": 1
+  }
+ },
+ {
+  "name": "fall back: not again at the second occurrence",
+  "params": {
+   "now": "2026-10-25T01:30:00Z",
+   "timezone": "Europe/Paris",
+   "window_minutes": 5,
+   "digest_at": "07:00",
+   "overdue_at": "09:00",
+   "overdue_for_minutes": 60,
+   "max_overdue": 10,
+   "quiet_hours": {
+    "start": "22:00",
+    "end": "07:00"
+   }
+  },
+  "input": [
+   {
+    "source": "obsidian.open_tasks",
+    "params": {},
+    "data": {
+     "tasks": [
+      {
+       "key": "obsidian:line:Tasks.md:Check the boiler",
+       "description": "Check the boiler",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-10-25",
+       "reminder": {
+        "date": null,
+        "time": "02:30"
+       },
+       "snoozed": false
+      }
+     ]
+    }
+   }
+  ],
+  "intents": [],
+  "data": {
+   "reminders": 0,
+   "digest": false,
+   "overdue": 0,
+   "overdue_nudges": 0,
+   "invalid_tasks": 0,
+   "pushes": 0
+  }
+ },
+ {
+  "name": "markdown links and tags are stripped",
+  "params": {
+   "now": "2026-11-09T13:30:00Z",
+   "timezone": "Europe/Paris",
+   "window_minutes": 60,
+   "digest_at": "07:00",
+   "overdue_at": "09:00",
+   "overdue_for_minutes": 60,
+   "max_overdue": 10,
+   "quiet_hours": {
+    "start": "22:00",
+    "end": "07:00"
+   }
+  },
+  "input": [
+   {
+    "source": "obsidian.open_tasks",
+    "params": {},
+    "data": {
+     "tasks": [
+      {
+       "key": "obsidian:line:Tasks.md:Read [the doc](https://x.test/doc) for [[Project|the project]] #work",
+       "description": "Read [the doc](https://x.test/doc) for [[Project|the project]] #work",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      }
+     ]
+    }
+   }
+  ],
+  "intents": [
+   {
+    "type": "notify.push",
+    "body": "Read the doc for the project",
+    "title": "⏰ 2026-11-09 14:30"
+   }
+  ],
+  "data": {
+   "reminders": 1,
+   "digest": false,
+   "overdue": 0,
+   "overdue_nudges": 0,
+   "invalid_tasks": 0,
+   "pushes": 1
+  }
+ },
+ {
+  "name": "a custom open status",
+  "params": {
+   "now": "2026-11-09T13:30:00Z",
+   "timezone": "Europe/Paris",
+   "window_minutes": 60,
+   "digest_at": "07:00",
+   "overdue_at": "09:00",
+   "overdue_for_minutes": 60,
+   "max_overdue": 10,
+   "quiet_hours": {
+    "start": "22:00",
+    "end": "07:00"
+   }
+  },
+  "input": [
+   {
+    "source": "obsidian.open_tasks",
+    "params": {},
+    "data": {
+     "tasks": [
+      {
+       "key": "obsidian:line:Tasks.md:Forwarded",
+       "description": "Forwarded",
+       "status": "custom",
+       "status_char": ">",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "14:30"
+       },
+       "snoozed": false
+      }
+     ],
+     "open_statuses": " />"
+    }
+   }
+  ],
+  "intents": [
+   {
+    "type": "notify.push",
+    "body": "Forwarded",
+    "title": "⏰ 2026-11-09 14:30"
+   }
+  ],
+  "data": {
+   "reminders": 1,
+   "digest": false,
+   "overdue": 0,
+   "overdue_nudges": 0,
+   "invalid_tasks": 0,
+   "pushes": 1
+  }
+ },
+ {
+  "name": "error: unknown parameter",
+  "params": {
+   "now": "2026-11-09T13:30:00Z",
+   "timezone": "Europe/Paris",
+   "window_minutes": 60,
+   "digest_at": "07:00",
+   "overdue_at": "09:00",
+   "overdue_for_minutes": 60,
+   "max_overdue": 10,
+   "quiet_hours": {
+    "start": "22:00",
+    "end": "07:00"
+   },
+   "window_minute": 5
+  },
+  "input": [
+   {
+    "source": "obsidian.open_tasks",
+    "params": {},
+    "data": {
+     "tasks": []
+    }
+   }
+  ],
+  "error": "unknown parameters: window_minute"
+ },
+ {
+  "name": "error: now without offset",
+  "params": {
+   "now": "2026-11-09T14:30",
+   "timezone": "Europe/Paris",
+   "window_minutes": 60,
+   "digest_at": "07:00",
+   "overdue_at": "09:00",
+   "overdue_for_minutes": 60,
+   "max_overdue": 10,
+   "quiet_hours": {
+    "start": "22:00",
+    "end": "07:00"
+   }
+  },
+  "input": [
+   {
+    "source": "obsidian.open_tasks",
+    "params": {},
+    "data": {
+     "tasks": []
+    }
+   }
+  ],
+  "error": "now must be an RFC 3339 time with an offset (`{{now}}`)"
+ },
+ {
+  "name": "error: no open_tasks data",
+  "params": {
+   "now": "2026-11-09T13:30:00Z",
+   "timezone": "Europe/Paris",
+   "window_minutes": 60,
+   "digest_at": "07:00",
+   "overdue_at": "09:00",
+   "overdue_for_minutes": 60,
+   "max_overdue": 10,
+   "quiet_hours": {
+    "start": "22:00",
+    "end": "07:00"
+   }
+  },
+  "input": [],
+  "error": "the input has no obsidian.open_tasks data"
+ }
+]

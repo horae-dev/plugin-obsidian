@@ -92,6 +92,7 @@ def test_serves_the_sink_over_stdio(tmp_path: Path) -> None:
     assert {tool for tool in tools if tool.startswith(f"{NAME}.")} == {
         *OPERATIONS,
         f"{NAME}.open_tasks",
+        f"{NAME}.reminders",
     }
     assert applied == {"target": NOTE, "after_sha256": sha(b"hi\n")}
     assert written == b"hi\n"
