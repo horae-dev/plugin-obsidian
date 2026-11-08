@@ -26,9 +26,12 @@ first occurrence: Debian cron's rules, as the core's scheduler, schemas decision
 - **The digest**: proposed by every run whose lookback holds `digest_at` (on today or the day
   before, for a configuration that crosses midnight): the overdue tasks (a count and the
   oldest `max_overdue`), then the day's tasks by reminder time, then the rest due that day.
-  A task whose reminder fell in `quiet_hours` before the digest is left out: the notifier
-  delays its own push to the end of the quiet hours. At most `DIGEST_BYTES` of UTF-8, never
-  cut mid-line; `UNREAD_LINE` when the source left tasks out (`more`, `output_cut`,
+  A task whose reminder fell in `quiet_hours` before the digest (since the previous one) is
+  left out of those sections when `quiet_hours.during` is `delay` (the default): the notifier
+  delays its own push to the end of the quiet hours. With `during: drop` the notifier would
+  drop that push, so no individual push is proposed for a quiet-hours reminder and the digest
+  lists it instead, under `During quiet hours:` (`- ⏰ 03:00 …`). At most `DIGEST_BYTES` of
+  UTF-8, never cut mid-line; `UNREAD_LINE` when the source left tasks out (`more`, `output_cut`,
   `withheld`, `hidden`, `skipped`). None when nothing is listed.
 - **Overdue nudges**: one push per task that became overdue (due the day before), from
   `overdue_at` for `overdue_for_minutes`, at most `max_overdue`. Older overdue tasks are only
@@ -105,6 +108,8 @@ class Params:
     overdue_for_minutes: int = DEFAULT_OVERDUE_FOR_MINUTES
     max_overdue: int = DEFAULT_MAX_OVERDUE
     quiet_hours: tuple[time, time] | None = None
+    quiet_drops: bool = False
+    """`quiet_hours.during` is `drop`: the notifier drops pushes proposed in quiet hours."""
 
 
 def _int(params: Mapping[str, Any], name: str, default: int, low: int, high: int) -> int:
@@ -128,16 +133,19 @@ def _optional_clock(params: Mapping[str, Any], name: str) -> time | None:
     return None if value is None else _clock(value, name)
 
 
-def _quiet_hours(value: object) -> tuple[time, time] | None:
+def _quiet_hours(value: object) -> tuple[time, time, bool] | None:
     if value is None:
         return None
     if not isinstance(value, Mapping) or not set(value) <= {"start", "end", "during"}:
-        raise ReminderError('quiet_hours is {start: "HH:MM", end: "HH:MM"}')
+        raise ReminderError('quiet_hours is {start: "HH:MM", end: "HH:MM", during: delay|drop}')
+    during = value.get("during", "delay")
+    if during not in ("delay", "drop"):
+        raise ReminderError("quiet_hours.during must be delay or drop")
     start = _clock(value.get("start"), "quiet_hours.start")
     end = _clock(value.get("end"), "quiet_hours.end")
     if start == end:
         raise ReminderError("quiet_hours.start and quiet_hours.end must differ")
-    return start, end
+    return start, end, during == "drop"
 
 
 def parse_params(params: Mapping[str, Any]) -> Params:
@@ -160,6 +168,7 @@ def parse_params(params: Mapping[str, Any]) -> Params:
         zone = None
     if zone is None:
         raise ReminderError("timezone must be an IANA time zone (`{{timezone}}`)")
+    quiet = _quiet_hours(params.get("quiet_hours"))
     return Params(
         now=now.astimezone(UTC),
         zone=zone,
@@ -172,7 +181,8 @@ def parse_params(params: Mapping[str, Any]) -> Params:
             params, "overdue_for_minutes", DEFAULT_OVERDUE_FOR_MINUTES, 1, 24 * 60
         ),
         max_overdue=_int(params, "max_overdue", DEFAULT_MAX_OVERDUE, 0, MAX_OVERDUE),
-        quiet_hours=_quiet_hours(params.get("quiet_hours")),
+        quiet_hours=quiet[:2] if quiet else None,
+        quiet_drops=bool(quiet and quiet[2]),
     )
 
 
@@ -368,8 +378,8 @@ def _digest(
 ) -> dict[str, Any] | None:
     """The digest of `day` (proposed at `at`), or `None` when it lists nothing."""
 
-    def delayed(task: Task) -> bool:
-        """Its reminder fell in quiet hours before the digest: its own push arrives then."""
+    def in_quiet(task: Task) -> bool:
+        """Its reminder fell in quiet hours since the previous digest."""
         r = task.reminder_at
         return (
             p.quiet_hours is not None
@@ -381,8 +391,12 @@ def _digest(
     overdue: list[Task] = []
     timed: list[Task] = []
     rest: list[Task] = []
+    night: list[Task] = []
     for task in tasks:
-        if delayed(task):
+        if in_quiet(task):
+            # `delay`: its own push arrives when the quiet hours end. `drop`: it has none.
+            if p.quiet_drops:
+                night.append(task)
             continue
         reminds = task.reminds_on(day, p.zone)
         due_today = task.due == day
@@ -394,9 +408,10 @@ def _digest(
             overdue.append(task)
         elif due_today or reminds:
             rest.append(task)
-    if not (overdue or timed or rest):
+    if not (overdue or night or timed or rest):
         return None
     overdue.sort(key=lambda task: task.due or date.max)
+    night.sort(key=lambda task: task.reminder_at or datetime.max.replace(tzinfo=UTC))
     timed.sort(key=lambda task: task.reminder_at or datetime.max.replace(tzinfo=UTC))
 
     footer = [UNREAD_LINE] if unread else []
@@ -418,6 +433,9 @@ def _digest(
         shown = overdue[: p.max_overdue]
         items = [f"- {t.description} (due {t.due.isoformat()})" for t in shown if t.due]
         sections.append((f"Overdue: {len(overdue)}", items, len(overdue) - len(shown)))
+    if night:
+        items = [f"- ⏰ {t.reminder_time:%H:%M} {t.description}" for t in night if t.reminder_time]
+        sections.append((f"During quiet hours: {len(items)}", items, 0))
     if timed or rest:
         items = [
             f"- {t.reminder_time:%H:%M} {t.description}"
@@ -483,7 +501,16 @@ def reminders(params: Mapping[str, Any], input: Any) -> tuple[dict[str, Any], li
         return start < moment <= end
 
     due_now = sorted(
-        (t for t in tasks if t.reminder_at is not None and in_window(t.reminder_at)),
+        (
+            t
+            for t in tasks
+            if t.reminder_at is not None
+            and in_window(t.reminder_at)
+            # `during: drop`: a push proposed in quiet hours is dropped; the digest lists it.
+            and not (
+                p.quiet_drops and p.quiet_hours and _quiet(t.reminder_at, p.zone, p.quiet_hours)
+            )
+        ),
         key=lambda t: t.reminder_at or end,
     )
     # The date and time as written (a skipped 02:30 still reads 02:30, pushed at 03:00).

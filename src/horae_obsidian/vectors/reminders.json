@@ -2678,6 +2678,261 @@
   }
  },
  {
+  "name": "quiet hours delay: a night reminder keeps its own push",
+  "params": {
+   "now": "2026-11-09T02:00:00Z",
+   "timezone": "Europe/Paris",
+   "window_minutes": 60,
+   "digest_at": "07:00",
+   "overdue_at": "09:00",
+   "overdue_for_minutes": 60,
+   "max_overdue": 10,
+   "quiet_hours": {
+    "start": "22:00",
+    "end": "07:00",
+    "during": "delay"
+   }
+  },
+  "input": [
+   {
+    "source": "obsidian.open_tasks",
+    "params": {},
+    "data": {
+     "tasks": [
+      {
+       "key": "obsidian:line:Tasks.md:Night call",
+       "description": "Night call",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "03:00"
+       },
+       "snoozed": false
+      }
+     ]
+    }
+   }
+  ],
+  "intents": [
+   {
+    "type": "notify.push",
+    "body": "Night call",
+    "title": "⏰ 2026-11-09 03:00"
+   }
+  ],
+  "data": {
+   "reminders": 1,
+   "digest": false,
+   "overdue": 0,
+   "overdue_nudges": 0,
+   "invalid_tasks": 0,
+   "pushes": 1
+  }
+ },
+ {
+  "name": "quiet hours drop: a night reminder has no push of its own",
+  "params": {
+   "now": "2026-11-09T02:00:00Z",
+   "timezone": "Europe/Paris",
+   "window_minutes": 60,
+   "digest_at": "07:00",
+   "overdue_at": "09:00",
+   "overdue_for_minutes": 60,
+   "max_overdue": 10,
+   "quiet_hours": {
+    "start": "22:00",
+    "end": "07:00",
+    "during": "drop"
+   }
+  },
+  "input": [
+   {
+    "source": "obsidian.open_tasks",
+    "params": {},
+    "data": {
+     "tasks": [
+      {
+       "key": "obsidian:line:Tasks.md:Night call",
+       "description": "Night call",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "03:00"
+       },
+       "snoozed": false
+      }
+     ]
+    }
+   }
+  ],
+  "intents": [],
+  "data": {
+   "reminders": 0,
+   "digest": false,
+   "overdue": 0,
+   "overdue_nudges": 0,
+   "invalid_tasks": 0,
+   "pushes": 0
+  }
+ },
+ {
+  "name": "quiet hours drop: the digest lists the night reminders",
+  "params": {
+   "now": "2026-11-09T06:00:00Z",
+   "timezone": "Europe/Paris",
+   "window_minutes": 60,
+   "digest_at": "07:00",
+   "overdue_at": "09:00",
+   "overdue_for_minutes": 60,
+   "max_overdue": 10,
+   "quiet_hours": {
+    "start": "22:00",
+    "end": "07:00",
+    "during": "drop"
+   }
+  },
+  "input": [
+   {
+    "source": "obsidian.open_tasks",
+    "params": {},
+    "data": {
+     "tasks": [
+      {
+       "key": "obsidian:line:Tasks.md:Night call",
+       "description": "Night call",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "03:00"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Plan",
+       "description": "Plan",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": null,
+       "snoozed": false
+      }
+     ]
+    }
+   }
+  ],
+  "intents": [
+   {
+    "type": "notify.push",
+    "body": "During quiet hours: 1\n- ⏰ 03:00 Night call\nToday: 1\n- Plan",
+    "title": "Today, 2026-11-09"
+   }
+  ],
+  "data": {
+   "reminders": 0,
+   "digest": true,
+   "overdue": 0,
+   "overdue_nudges": 0,
+   "invalid_tasks": 0,
+   "pushes": 1
+  }
+ },
+ {
+  "name": "quiet hours delay: the digest leaves the night reminders out",
+  "params": {
+   "now": "2026-11-09T06:00:00Z",
+   "timezone": "Europe/Paris",
+   "window_minutes": 60,
+   "digest_at": "07:00",
+   "overdue_at": "09:00",
+   "overdue_for_minutes": 60,
+   "max_overdue": 10,
+   "quiet_hours": {
+    "start": "22:00",
+    "end": "07:00",
+    "during": "delay"
+   }
+  },
+  "input": [
+   {
+    "source": "obsidian.open_tasks",
+    "params": {},
+    "data": {
+     "tasks": [
+      {
+       "key": "obsidian:line:Tasks.md:Night call",
+       "description": "Night call",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": {
+        "date": null,
+        "time": "03:00"
+       },
+       "snoozed": false
+      },
+      {
+       "key": "obsidian:line:Tasks.md:Plan",
+       "description": "Plan",
+       "status": "todo",
+       "status_char": " ",
+       "due": "2026-11-09",
+       "reminder": null,
+       "snoozed": false
+      }
+     ]
+    }
+   }
+  ],
+  "intents": [
+   {
+    "type": "notify.push",
+    "body": "Today: 1\n- Plan",
+    "title": "Today, 2026-11-09"
+   }
+  ],
+  "data": {
+   "reminders": 0,
+   "digest": true,
+   "overdue": 0,
+   "overdue_nudges": 0,
+   "invalid_tasks": 0,
+   "pushes": 1
+  }
+ },
+ {
+  "name": "error: bad quiet_hours.during",
+  "params": {
+   "now": "2026-11-09T02:00:00Z",
+   "timezone": "Europe/Paris",
+   "window_minutes": 60,
+   "digest_at": "07:00",
+   "overdue_at": "09:00",
+   "overdue_for_minutes": 60,
+   "max_overdue": 10,
+   "quiet_hours": {
+    "start": "22:00",
+    "end": "07:00",
+    "during": "x"
+   }
+  },
+  "input": [
+   {
+    "source": "obsidian.open_tasks",
+    "params": {},
+    "data": {
+     "tasks": []
+    }
+   }
+  ],
+  "error": "quiet_hours.during must be delay or drop"
+ },
+ {
   "name": "error: unknown parameter",
   "params": {
    "now": "2026-11-09T13:30:00Z",

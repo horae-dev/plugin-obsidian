@@ -18,6 +18,7 @@ from horae_obsidian.reminders import SOURCE, ReminderError, reminders
 
 ZONE = "Europe/Paris"
 TODAY = "2026-11-09"
+QUIET = {"start": "22:00", "end": "07:00"}
 
 
 def task(description: str, **fields: Any) -> dict[str, Any]:
@@ -145,6 +146,31 @@ CASES: list[tuple[str, dict[str, Any], Any]] = [
             task("Forwarded", status="custom", status_char=">", **remind("14:30")),
             open_statuses=" />",
         ),
+    ),
+    (
+        "quiet hours delay: a night reminder keeps its own push",
+        params(f"{TODAY} 03:00", quiet_hours={**QUIET, "during": "delay"}),
+        source(task("Night call", **remind("03:00"))),
+    ),
+    (
+        "quiet hours drop: a night reminder has no push of its own",
+        params(f"{TODAY} 03:00", quiet_hours={**QUIET, "during": "drop"}),
+        source(task("Night call", **remind("03:00"))),
+    ),
+    (
+        "quiet hours drop: the digest lists the night reminders",
+        params(f"{TODAY} 07:00", quiet_hours={**QUIET, "during": "drop"}),
+        source(task("Night call", **remind("03:00")), task("Plan", due=TODAY)),
+    ),
+    (
+        "quiet hours delay: the digest leaves the night reminders out",
+        params(f"{TODAY} 07:00", quiet_hours={**QUIET, "during": "delay"}),
+        source(task("Night call", **remind("03:00")), task("Plan", due=TODAY)),
+    ),
+    (
+        "error: bad quiet_hours.during",
+        params(f"{TODAY} 03:00", quiet_hours={**QUIET, "during": "x"}),
+        source(),
     ),
     ("error: unknown parameter", {**params(f"{TODAY} 14:30"), "window_minute": 5}, source()),
     (
