@@ -215,7 +215,8 @@ def test_every_push_carries_a_key_in_the_core_alphabet() -> None:
     assert re.fullmatch(r"rem:[0-9a-f]{12}:2026-11-09T14:30", reminder)
     nudge = [k for k in keys("09:00", late) if k.startswith("od:")]
     assert len(nudge) == 1
-    assert re.fullmatch(r"od:[0-9a-f]{12}:2026-11-08", nudge[0])
+    # due day, then the nudge day (the day after): the key carries the day it is nudged.
+    assert re.fullmatch(r"od:[0-9a-f]{12}:2026-11-08:2026-11-09", nudge[0])
 
 
 def test_keys_are_stable_across_runs_and_distinct_per_task() -> None:

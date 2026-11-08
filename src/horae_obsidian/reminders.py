@@ -554,10 +554,10 @@ def reminders(params: Mapping[str, Any], input: Any) -> tuple[dict[str, Any], li
             f"Overdue: due {t.due.isoformat()}",
             t.description,
             t.key,
-            f"od:{_digest_of(t.key, 12)}:{t.due.isoformat()}",
+            f"od:{_digest_of(t.key, 12)}:{t.due.isoformat()}:{nudge_day.isoformat()}",
         )
         for t in nudged
-        if t.due
+        if t.due and nudge_day
     ]
 
     intents = _distinct(singles)
