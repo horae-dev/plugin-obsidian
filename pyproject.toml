@@ -1,6 +1,6 @@
 [project]
 name = "horae-plugin-obsidian"
-version = "0.1.0"
+version = "0.1.1"
 description = "Horae plugin: read and write an Obsidian vault (Obsidian Tasks syntax)."
 readme = "README.md"
 license = "Apache-2.0"

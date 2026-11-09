@@ -586,6 +586,41 @@ def test_forced_restore_status_never_guesses_another_task(vault: Path) -> None:
     assert week(vault) == shifted
 
 
+def test_forced_restore_status_refuses_a_neighbour_with_the_same_description(vault: Path) -> None:
+    """The user deleted the changed line; the line now at its number reads alike but is not
+    that task (another date, or the status the change did not record): refused, not guessed."""
+    key = key_of(vault, "Pay rent #home")
+    details = apply(vault, status(key, "done")).details
+    head, _, rest = week(vault).partition(b"\r\n- [x] Pay rent")
+    rest = rest.split(b"\r\n", 1)[1]
+    for neighbour in (
+        b"- [ ] Pay rent \xf0\x9f\x93\x85 2026-12-24 #home",  # same words, another due date
+        b"- [ ] Pay rent \xf0\x9f\x93\x85 2026-11-10 #home 2",  # another description
+        b"- [-] Pay rent \xf0\x9f\x93\x85 2026-11-10 #home",  # cancelled, not done
+    ):
+        now = head + b"\r\n" + neighbour + b"\r\n" + rest
+        (vault / "Notes" / "week.md").write_bytes(now)
+        with pytest.raises(SinkError) as raised:
+            restore_status(vault, details, force=True)
+        assert raised.value.kind == "target_changed", neighbour
+        assert week(vault) == now
+
+
+def test_forced_restore_status_does_not_match_a_boolean_line_number(vault: Path) -> None:
+    (vault / "Notes" / "week.md").write_bytes(b"- [ ] Pay rent\n")
+    key = key_of(vault, "Pay rent")
+    details = apply(vault, status(key, "done")).details
+    assert details["line"] == 1
+    now = edited(vault, "✅ 2026-11-08", "✅ 2026-11-01")
+    for bad in (True, 1.0, "1"):  # `True == 1`: only a whole number is a line number
+        with pytest.raises(SinkError) as raised:
+            restore_status(vault, {**details, "line": bad}, force=True)
+        assert raised.value.kind == "target_changed"
+        assert (vault / "Notes" / "week.md").read_bytes() == now
+    assert restore_status(vault, details, force=True) is True
+    assert week(vault) == b"- [ ] Pay rent\n"
+
+
 def test_forced_restore_status_finds_a_moved_task_by_its_block_id(vault: Path) -> None:
     created = apply(
         vault,

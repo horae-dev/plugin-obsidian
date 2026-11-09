@@ -387,11 +387,38 @@ def _relink(paths: Paths, provenance: Provenance, task: Task, line_sha256: str) 
     return False
 
 
+_PLAN = ("due", "scheduled", "start", "reminder")
+"""The fields a snooze may move: left out of the comparison when the change was a snooze."""
+
+
+def _is_int(value: object) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _same_task(candidate: Task, wanted: Task, status: object) -> bool:
+    """Whether `candidate` (the edited line found at the recorded place) still reads as the
+    task whose line was replaced: same description, the same fields `update_status` does not
+    change (created, recurrence and, unless it was a snooze, the due, scheduled, start and
+    reminder dates), and the status the change recorded in `details` (a done or cancelled one;
+    else the status the line had)."""
+    if candidate.description != wanted.description:
+        return False
+    snoozed = status == "snoozed"
+
+    def fields(task: Task) -> list[tuple[str, str]]:
+        skip = {"done", "cancelled"} | (set(_PLAN) if snoozed else set())
+        return [(f.kind, f.value) for f in task.fields if f.kind not in skip]
+
+    expected = status if status in ("done", "cancelled") else wanted.status
+    return fields(candidate) == fields(wanted) and candidate.status == expected
+
+
 def _forced_match(document: Document, details: dict[str, Any], before_line: str) -> Task | None:
     """`horae undo --force`: the task whose line was edited since, found again by what the user
     did not touch. The one task of the note with the replaced line's `^h-` block id, else the
-    one on the recorded line number with the replaced line's description. `None` otherwise
-    (nothing else is ever overwritten)."""
+    one on the recorded line number (a whole number, never `True`) that still reads as the same
+    task (`_same_task`: description, dates and the status recorded). `None` when there is none
+    or more than one (nothing else is ever overwritten)."""
     old = parse(before_line.encode("utf-8", ENCODING_ERRORS), document.path).tasks
     if len(old) != 1:
         return None
@@ -399,11 +426,12 @@ def _forced_match(document: Document, details: dict[str, Any], before_line: str)
     if wanted.block_id is not None:
         found = [t for t in document.tasks if t.block_id == wanted.block_id]
     else:
-        found = [
-            t
-            for t in document.tasks
-            if t.line.number == details.get("line") and t.description == wanted.description
-        ]
+        number, status = details.get("line"), details.get("status")
+        found = (
+            [t for t in document.tasks if t.line.number == number and _same_task(t, wanted, status)]
+            if _is_int(number)
+            else []
+        )
     return found[0] if len(found) == 1 else None
 
 

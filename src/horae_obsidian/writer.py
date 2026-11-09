@@ -24,8 +24,10 @@ anything Horae does not own, as a second, independent check (threat model T30):
   be identical, so a run that replaced several blocks, or one block several times, is undone;
   a malformed marker elsewhere is ignored when the blocks explain the change
   (`block_ambiguous` when they do not). Anything else is `not_owned`, as is creating or
-  removing a note Horae does not own; so is `horae undo --force` over a note edited outside
-  its blocks (the sink has no `force` flag: manual repair).
+  removing a note Horae does not own; so is `horae undo --force` over a note that is to be
+  created or removed. A forced restore of a note edited outside its blocks (`merge_forced`)
+  puts the blocks back, removes a block the original lacks and writes a deleted one again
+  where it was (`_anchor`); the user's bytes outside the blocks stay.
 
 **Paths.** The vault is the plugin's single `paths.write` entry as approved in `horae.lock`,
 an absolute path (`vault_unset`, `config_invalid`); the target must also pass
@@ -211,22 +213,42 @@ def _marks(text: str) -> _Marks:
     return found
 
 
-def _outside(text: str, spans: list[tuple[str, tuple[int, int]]]) -> list[str]:
-    """The pieces of `text` around `spans` (in order), each followed by its block's name."""
+def _outside(
+    text: str, spans: list[tuple[str, tuple[int, int]]], lone: list[tuple[int, int]] | None = None
+) -> list[str]:
+    """The pieces of `text` around `spans` (in order), each followed by its block's name.
+    The `lone` spans (a block only this text holds, `_confined(..., lone=True)`) are left out
+    as if they were not there."""
+    items: list[tuple[int, int, str | None]] = [(a, b, n) for n, (a, b) in spans]
+    items += [(start, stop, None) for start, stop in lone or []]
     pieces: list[str] = []
+    held = ""
     last = 0
-    for name, (start, stop) in spans:
-        pieces += [text[last:start], name]
+    for start, stop, name in sorted(items, key=lambda item: item[0]):
+        held += text[last:start]
+        if name is not None:
+            pieces += [held, name]
+            held = ""
         last = stop
-    pieces.append(text[last:])
+    pieces.append(held + text[last:])
     return pieces
 
 
-def _confined(before: bytes, after: bytes, allowed: set[str] | None, path: str) -> None:
+def _lone(marks: _Marks, other: _Marks) -> list[tuple[int, int]]:
+    """The spans of the blocks only `marks` holds: well-formed pairs no line of `other` names."""
+    spans = [(name, marks.span(name)) for name in marks.names() - other.names()]
+    return [span for _, span in spans if span is not None]
+
+
+def _confined(
+    before: bytes, after: bytes, allowed: set[str] | None, path: str, *, lone: bool = False
+) -> None:
     """Refuse `after` unless the bytes outside the well-formed block pairs are identical in
     both texts and every block that changed is in `allowed` (`None`: any) and, in both texts,
     one well-formed marker pair holding no other marker. A malformed marker elsewhere is
-    ignored when the blocks explain the change, `block_ambiguous` when they do not."""
+    ignored when the blocks explain the change, `block_ambiguous` when they do not. With
+    `lone` (only `horae undo --force`), a block that is one well-formed pair in one text and
+    not named at all in the other (added or removed whole) is not "outside" either."""
     if before == after:
         return
     old, new = _text(before, path), _text(after, path)
@@ -239,7 +261,8 @@ def _confined(before: bytes, after: bytes, allowed: set[str] | None, path: str) 
             pairs.append((name, then, later))
     old_spans = sorted(((name, then) for name, then, _ in pairs), key=lambda item: item[1])
     new_spans = sorted(((name, later) for name, _, later in pairs), key=lambda item: item[1])
-    if _outside(old, old_spans) == _outside(new, new_spans):
+    gone, added = (_lone(was, now), _lone(now, was)) if lone else ([], [])
+    if _outside(old, old_spans, gone) == _outside(new, new_spans, added):
         return
     unclear = {
         name
@@ -304,47 +327,76 @@ def check_apply(intent: dict[str, Any], before: bytes | None, after: bytes) -> N
         raise SinkError("not_supported", f"the vault sink applies no {kind!s:.40} intent")
 
 
-def check_restore(path: str, before: bytes | None, after: bytes | None) -> None:
+def check_restore(
+    path: str, before: bytes | None, after: bytes | None, *, forced: bool = False
+) -> None:
     """Refuse an undo that would create, remove or change, outside its blocks, a note Horae
     does not own (the journal does not say which blocks a run replaced: any of them may
-    change, each one well-formed pair before and after)."""
+    change, each one well-formed pair before and after). `forced` (`merge_forced`'s result
+    only) also accepts a block removed or added whole."""
     if is_owned(path) or before == after:
         return
     if before is None or after is None:
         raise _not_owned(path, "Horae does not own this note: it neither creates nor removes it")
-    _confined(before, after, None, path)
+    _confined(before, after, None, path, lone=forced)
+
+
+def _anchor(old: str, start: int, text: str, path: str) -> int:
+    """Where in `text` (the note as it is now) the block that began at `start` in `old` goes
+    back: after the one line that preceded it (a non-blank line `text` holds exactly once, with
+    its line ending), else at the very start or the very end of the note when the block was
+    there. `not_owned` when the place is not certain: nothing is guessed."""
+    if start == 0:
+        if text.startswith("\ufeff"):
+            raise _not_owned(path, "the deleted block began the note, which now has a BOM")
+        return 0
+    previous = old[: start - 1].rsplit("\n", 1)[-1] + "\n"
+    if previous.strip():
+        offset, found = 0, []
+        for line in _lines(text):
+            offset += len(line)
+            if line == previous:
+                found.append(offset)
+        if len(found) == 1:
+            return found[0]
+    raise _not_owned(path, "the place of a block the user deleted cannot be told")
 
 
 def merge_forced(path: str, current: bytes, original: bytes) -> bytes:
     """`horae undo --force` of a note Horae does not own, edited outside its blocks since: the
     note as it is now, with each block put back as `original` has it. Only blocks that are one
-    well-formed pair in both texts (and the same set in both) are touched: the bytes outside
-    them stay the user's. Anything else is `not_owned` (or `block_ambiguous`)."""
+    well-formed pair in both texts are replaced; the bytes outside them stay the user's. A
+    block `original` lacks (Horae created it) is removed whole, markers and content. A block
+    the user deleted is written again at the place `original` records (`_anchor`: after the
+    one unmistakable line that preceded it, or at the very start or end of the note); in
+    doubt it is `not_owned`. Anything else is `not_owned` (or `block_ambiguous`)."""
     old, new = _text(original, path), _text(current, path)
     was, now = _marks(old), _marks(new)
-    names = was.names() | now.names()
     pairs: list[tuple[tuple[int, int], tuple[int, int]]] = []
-    for name in names:
+    removed: list[tuple[int, int]] = []
+    restored: list[tuple[int, int]] = []
+    for name in was.names() | now.names():
         then, later = was.span(name), now.span(name)
         if then is not None and later is not None:
             pairs.append((then, later))
-    if len(pairs) != len(names):
-        unclear = any(
-            name in marks.names() and marks.span(name) is None
-            for name in names
-            for marks in (was, now)
-        )
-        if unclear:
+        elif then is None and later is not None and name not in was.names():
+            removed.append(later)
+        elif then is not None and later is None and name not in now.names():
+            restored.append(then)
+        elif any(name in m.names() and m.span(name) is None for m in (was, now)):
             raise SinkError("block_ambiguous", f"{path}: a block is not one marker pair")
-        raise _not_owned(path, "Horae does not own this note and the blocks are not the same")
-    parts: list[str] = []
-    last = 0
-    for then, later in sorted(pairs, key=lambda pair: pair[1][0]):
-        parts += [new[last : later[0]], old[then[0] : then[1]]]
-        last = later[1]
-    parts.append(new[last:])
-    merged = "".join(parts).encode("utf-8")
-    _confined(current, merged, None, path)  # the blocks alone changed, whatever happened
+        else:
+            raise _not_owned(path, "Horae does not own this note and the blocks are not the same")
+    edits = [(later, old[then[0] : then[1]]) for then, later in pairs]
+    edits += [(span, "") for span in removed]
+    text = new
+    for (start, stop), content in sorted(edits, key=lambda edit: edit[0][0], reverse=True):
+        text = text[:start] + content + text[stop:]
+    for then in sorted(restored):  # in the order of the original: a block can anchor the next
+        at = _anchor(old, then[0], text, path)
+        text = text[:at] + old[then[0] : then[1]] + text[at:]
+    merged = text.encode("utf-8")
+    _confined(current, merged, None, path, lone=True)  # the blocks alone changed
     return merged
 
 
@@ -357,15 +409,16 @@ def forced_restore(paths: Paths, path: str, content: bytes | None, expected: str
     if sha256(current) != expected:
         raise _changed(str(path))
     wanted = content
+    merged = False
     try:
         check_restore(str(path), current, content)
     except SinkError as error:
         if error.kind != "not_owned" or current is None or content is None:
             raise
-        wanted = merge_forced(str(path), current, content)
+        wanted, merged = merge_forced(str(path), current, content), True
 
     def check(before: bytes | None) -> None:
-        check_restore(str(path), before, wanted)
+        check_restore(str(path), before, wanted, forced=merged)
 
     put(paths, path, wanted, expected, check)
 

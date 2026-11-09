@@ -6,11 +6,10 @@ sink operations `obsidian.read`, `.apply`, `.restore`, `.restore_status`, `.pare
 and `.identity` (horae-sdk `Sink`, one object for the namespace). For a `note.*` intent the
 core computes the bytes; `apply` writes exactly those with `horae_obsidian.writer` (owned
 files and blocks only, atomic, compare-and-swap) and returns their digest. A `task.*`
-intent (routed by a
-`mode: tasks` entry) is applied by `horae_obsidian.tasksink`: one line changed, or one line
-appended to the Tasks writer's note. The Tasks writer's notes (`provenance`) are
-writer-exclusive: a note intent on one, or its undo, is refused (`tasks_note`). Every
-file-system call runs in a worker thread.
+intent (routed by a `mode: tasks` entry) is applied by `horae_obsidian.tasksink`: one line
+changed, or one line appended to the Tasks writer's note. The Tasks writer's notes
+(`provenance`) are writer-exclusive: a note intent on one, or its undo, is refused
+(`tasks_note`). Every file-system call runs in a worker thread.
 """
 
 import asyncio
