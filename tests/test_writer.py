@@ -714,8 +714,7 @@ def test_forced_restore_keeps_every_other_refusal(vault: Path) -> None:
     original = f"# Mine\n{BLOCK}".encode()
     cases: list[tuple[str, bytes | None, str | None, str]] = [
         (USER, None, sha(now), "not_owned"),  # a user note is never removed
-        (USER, f"# Mine\n{BLOCK}{OTHER}".encode(), sha(now), "not_owned"),  # other blocks
-        (USER, b"# Mine\n", sha(now), "not_owned"),  # no block to put back
+        (USER, f"# Mine\n{BLOCK}{OTHER[:-5]}".encode(), sha(now), "block_ambiguous"),  # malformed
         (USER, original, sha(b"# something else"), "target_changed"),  # compare-and-swap
         ("Notes/gone.md", b"x\n", None, "not_owned"),  # never created
         ("../x.md", original, None, "path_invalid"),
@@ -731,6 +730,55 @@ def test_forced_restore_keeps_every_other_refusal(vault: Path) -> None:
         restore(vault, USER, original, sha(broken), force=True)
     assert raised.value.kind == "block_ambiguous"
     assert (vault / USER).read_bytes() == broken
+
+
+def test_forced_restore_removes_a_block_the_original_lacks(vault: Path) -> None:
+    original = f"# Mine\n{BLOCK}tail\n".encode()
+    now = put(vault, USER, f"# Mine, edited\n{NEW_BLOCK}my line\n{NEW_OTHER}tail\n".encode())
+    with pytest.raises(SinkError) as raised:  # without force: refused, as before
+        restore(vault, USER, original, sha(now))
+    assert raised.value.kind == "not_owned"
+    assert (vault / USER).read_bytes() == now
+    restore(vault, USER, original, sha(now), force=True)
+    # `other` (Horae's, absent from the original) is gone whole; every user byte stays
+    assert (vault / USER).read_bytes() == f"# Mine, edited\n{BLOCK}my line\ntail\n".encode()
+    assert leftovers(vault / "Notes") == []
+
+
+def test_forced_restore_writes_a_deleted_block_where_the_original_had_it(vault: Path) -> None:
+    original = f"# Mine\n{BLOCK}between\n{OTHER}tail\n".encode()
+    now = put(vault, USER, b"# Mine, edited\n" + f"{NEW_BLOCK}my line\nbetween\ntail!\n".encode())
+    with pytest.raises(SinkError) as raised:
+        restore(vault, USER, original, sha(now))
+    assert raised.value.kind == "not_owned"
+    restore(vault, USER, original, sha(now), force=True)
+    assert (vault / USER).read_bytes() == (
+        f"# Mine, edited\n{BLOCK}my line\nbetween\n{OTHER}tail!\n".encode()
+    )
+    # a block that began the note comes back at the start
+    start = f"{BLOCK}# Mine\n".encode()
+    now = put(vault, USER, b"# Mine!\n")
+    restore(vault, USER, start, sha(now), force=True)
+    assert (vault / USER).read_bytes() == f"{BLOCK}# Mine!\n".encode()
+
+
+def test_forced_restore_refuses_a_deleted_block_whose_place_is_in_doubt(vault: Path) -> None:
+    for original, current in (
+        (f"# Mine\n{BLOCK}x\n", "# Other\nx\n"),  # the line before it is gone
+        (f"same\n{BLOCK}x\n", "same\nsame\nx\n"),  # that line is there twice
+        (f"# Mine\n\n{BLOCK}x\n", "# Mine\n\nx\n"),  # only a blank line precedes it
+    ):
+        now = put(vault, USER, current.encode())
+        with pytest.raises(SinkError) as raised:
+            restore(vault, USER, original.encode(), sha(now), force=True)
+        assert raised.value.kind == "not_owned"
+        assert (vault / USER).read_bytes() == now
+    # a half-deleted block is not guessed either
+    now = put(vault, USER, b"# Mine\n<!-- horae:end brief -->\nx\n")
+    with pytest.raises(SinkError) as raised:
+        restore(vault, USER, f"# Mine\n{BLOCK}x\n".encode(), sha(now), force=True)
+    assert raised.value.kind == "block_ambiguous"
+    assert (vault / USER).read_bytes() == now
 
 
 def test_forced_restore_cannot_touch_a_tasks_note(vault: Path) -> None:

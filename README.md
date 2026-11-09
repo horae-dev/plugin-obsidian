@@ -243,15 +243,19 @@ the same conventions as its dry-run diff) and calls the sink operations `obsidia
   outside them; a malformed or prose marker elsewhere does not stop it. If you edited such a
   note **outside** its blocks after the run, the undo is refused (`not_owned`). With
   `horae undo --force` (and only then: the plugin never infers it) the blocks are put back
-  and your edit outside them is kept, as long as the note holds the same blocks, each one
-  well-formed, as the journalled original; a note that would have to be created or removed,
-  or whose blocks differ, stays refused: repair it by hand (the journal keeps the original
-  bytes).
+  and your edit outside them is kept, as long as every block is one well-formed marker pair.
+  A block Horae created since (the original lacks it) is removed whole, markers and content;
+  a block you deleted is written back where the original had it, after the one unmistakable
+  line that preceded it (or at the very start or end of the note), and refused when that
+  place is in doubt. A note that would have to be created or removed, or with a malformed
+  block, stays refused: repair it by hand (the journal keeps the original bytes).
 - **`horae undo` of a task status change** puts the recorded `before_line` back when the note
   still holds the changed line exactly once. A task line you edited since is refused
   (`target_changed`). With `--force` the same task is found again, by its `^h-` block id or
-  else by its line number and description, and that one line is replaced; nothing else in the
-  note changes. A task that cannot be found again is still refused.
+  else by its line number (a whole number) and what you did not touch: the description, the
+  created, recurrence and (unless it was a snooze) due, scheduled, start and reminder
+  fields, and the status the change recorded. That one line is replaced; nothing else in the
+  note changes. Two matches are refused, not guessed. A task that cannot be found again is still refused.
 - **The vault** is the single `paths.write` entry granted in `horae.lock`, an absolute path
   (the manifest asks for none). Note paths end in `.md` with no hidden segment (never
   `.obsidian/`), no `..`, `\`, `:`, control character or lone surrogate, at most 255 UTF-8
