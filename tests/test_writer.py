@@ -12,6 +12,7 @@ import stat
 import threading
 import time
 import unicodedata
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +20,7 @@ import pytest
 from horae_sdk import ApplyRequest, Paths, SinkError
 
 import horae_obsidian.writer as writer
+from horae_obsidian import tasksink
 from horae_obsidian.sink import TOOL, VaultSink
 
 OWNED = "Daily/2026-10-29.assistant.md"
@@ -531,8 +533,10 @@ def test_identity_names_the_vault(vault: Path, monkeypatch: pytest.MonkeyPatch) 
     assert raised.value.kind == "unreadable"
 
 
-def restore(vault: Path, path: str, content: bytes | None, expected: str | None) -> None:
-    asyncio.run(VaultSink([TOOL]).restore(paths(vault), path, content, expected))
+def restore(
+    vault: Path, path: str, content: bytes | None, expected: str | None, **extra: Any
+) -> None:
+    asyncio.run(VaultSink([TOOL]).restore(paths(vault), path, content, expected, **extra))
 
 
 def test_undo_removes_or_restores_an_owned_note(vault: Path) -> None:
@@ -669,17 +673,78 @@ def test_an_undo_the_blocks_do_not_explain_is_refused(vault: Path) -> None:
     assert raised.value.kind == "block_ambiguous"
 
 
-def test_a_user_note_edited_outside_its_blocks_is_not_restored_even_under_force(
-    vault: Path,
+@pytest.mark.parametrize("extra", [{}, {"force": False}, {"force": None}, {"force": "yes"}])
+def test_a_user_note_edited_outside_its_blocks_is_not_restored_without_force(
+    vault: Path, extra: dict[str, Any]
 ) -> None:
-    """`horae undo --force` restores the whole note through `restore`: refused here (README,
-    "manual repair"), the sink having no `force` flag yet."""
+    """Without `force` (absent, false, or anything but `True`) nothing changed: refused."""
     original = f"# Mine\n{BLOCK}".encode()
     now = put(vault, USER, f"# Mine, edited\n{NEW_BLOCK}".encode())
     with pytest.raises(SinkError) as raised:
-        restore(vault, USER, original, sha(now))
+        restore(vault, USER, original, sha(now), **extra)
     assert raised.value.kind == "not_owned"
     assert (vault / USER).read_bytes() == now
+
+
+def test_forced_restore_puts_back_the_blocks_and_keeps_the_edit_outside(vault: Path) -> None:
+    original = f"# Mine\n{BLOCK}between\n{OTHER}tail\n".encode()
+    now = put(
+        vault, USER, f"# Mine, edited\n{NEW_BLOCK}my line\nbetween\n{NEW_OTHER}tail!\n".encode()
+    )
+    restore(vault, USER, original, sha(now), force=True)
+    assert (vault / USER).read_bytes() == (
+        f"# Mine, edited\n{BLOCK}my line\nbetween\n{OTHER}tail!\n".encode()
+    )
+    assert leftovers(vault / "Notes") == []
+
+
+def test_forced_restore_of_an_unedited_note_is_the_plain_restore(vault: Path) -> None:
+    now = put(vault, USER, f"# Mine\n{NEW_BLOCK}".encode())
+    restore(vault, USER, f"# Mine\n{BLOCK}".encode(), sha(now), force=True)
+    assert (vault / USER).read_bytes() == f"# Mine\n{BLOCK}".encode()
+    owned = put(vault, OWNED, b"# Day\n\n## H\n\nx\n")
+    restore(vault, OWNED, b"# Day\n", sha(owned), force=True)
+    assert (vault / OWNED).read_bytes() == b"# Day\n"
+    restore(vault, OWNED, None, sha(b"# Day\n"), force=True)
+    assert not (vault / OWNED).exists()
+
+
+def test_forced_restore_keeps_every_other_refusal(vault: Path) -> None:
+    now = put(vault, USER, f"# Mine, edited\n{NEW_BLOCK}".encode())
+    original = f"# Mine\n{BLOCK}".encode()
+    cases: list[tuple[str, bytes | None, str | None, str]] = [
+        (USER, None, sha(now), "not_owned"),  # a user note is never removed
+        (USER, f"# Mine\n{BLOCK}{OTHER}".encode(), sha(now), "not_owned"),  # other blocks
+        (USER, b"# Mine\n", sha(now), "not_owned"),  # no block to put back
+        (USER, original, sha(b"# something else"), "target_changed"),  # compare-and-swap
+        ("Notes/gone.md", b"x\n", None, "not_owned"),  # never created
+        ("../x.md", original, None, "path_invalid"),
+        ("Notes/.hidden.md", original, None, "path_invalid"),
+    ]
+    for path, content, expected, kind in cases:
+        with pytest.raises(SinkError) as raised:
+            restore(vault, path, content, expected, force=True)
+        assert raised.value.kind == kind, (path, kind)
+    assert (vault / USER).read_bytes() == now
+    broken = put(vault, USER, b"# Mine, edited\n<!-- horae:begin brief -->\nnew\n")
+    with pytest.raises(SinkError) as raised:  # a block that is not one pair is not guessed
+        restore(vault, USER, original, sha(broken), force=True)
+    assert raised.value.kind == "block_ambiguous"
+    assert (vault / USER).read_bytes() == broken
+
+
+def test_forced_restore_cannot_touch_a_tasks_note(vault: Path) -> None:
+    tasksink.create(
+        paths(vault),
+        {},
+        {"type": "task.create", "title": "T", "fingerprint": "fp"},
+        lambda: datetime(2026, 11, 8, tzinfo=UTC),
+    )
+    note = (vault / tasksink.DEFAULT_NOTE).read_bytes()
+    with pytest.raises(SinkError) as raised:
+        restore(vault, tasksink.DEFAULT_NOTE, None, sha(note), force=True)
+    assert raised.value.kind == "tasks_note"
+    assert (vault / tasksink.DEFAULT_NOTE).read_bytes() == note
 
 
 # --- owned notes: the block and the rest of the note ------------------------------------------

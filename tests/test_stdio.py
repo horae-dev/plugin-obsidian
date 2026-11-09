@@ -15,7 +15,10 @@ from mcp.client.stdio import StdioServerParameters
 
 from horae_obsidian import COMMAND, NAME, build
 
-OPERATIONS = {f"{NAME}.{op}" for op in ("read", "apply", "restore", "parent_exists", "identity")}
+OPERATIONS = {
+    f"{NAME}.{op}"
+    for op in ("read", "apply", "restore", "restore_status", "parent_exists", "identity")
+}
 NOTE = "Daily/2026-10-29.assistant.md"
 
 

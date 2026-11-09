@@ -2,10 +2,11 @@
 """The `obsidian.write_note` and `obsidian.write_task` sinks: intents applied to the vault.
 
 The core never calls those tools itself; it applies the intents routed to them through the
-sink operations `obsidian.read`, `.apply`, `.restore`, `.parent_exists` and `.identity`
-(horae-sdk `Sink`, one object for the namespace). For a `note.*` intent the core computes
-the bytes; `apply` writes exactly those with `horae_obsidian.writer` (owned files and blocks
-only, atomic, compare-and-swap) and returns their digest. A `task.*` intent (routed by a
+sink operations `obsidian.read`, `.apply`, `.restore`, `.restore_status`, `.parent_exists`
+and `.identity` (horae-sdk `Sink`, one object for the namespace). For a `note.*` intent the
+core computes the bytes; `apply` writes exactly those with `horae_obsidian.writer` (owned
+files and blocks only, atomic, compare-and-swap) and returns their digest. A `task.*`
+intent (routed by a
 `mode: tasks` entry) is applied by `horae_obsidian.tasksink`: one line changed, or one line
 appended to the Tasks writer's note. The Tasks writer's notes (`provenance`) are
 writer-exclusive: a note intent on one, or its undo, is refused (`tasks_note`). Every
@@ -78,10 +79,29 @@ class VaultSink(Sink):
         return tasksink.update_status(request.paths, request.intent, self.clock)
 
     async def restore(
-        self, paths: Paths, path: str, content: bytes | None, expected_sha256: str | None
+        self,
+        paths: Paths,
+        path: str,
+        content: bytes | None,
+        expected_sha256: str | None,
+        force: bool = False,
     ) -> None:
+        """`force` is the user's `horae undo --force`, never inferred. Without it, nothing
+        differs from before. With it, a note edited outside its blocks is restored block by
+        block (`writer.forced_restore`): the user's edit outside them is kept."""
+        await asyncio.to_thread(tasksink.refuse_tasks_note, paths, path)
+        if force is True:
+            await asyncio.to_thread(writer.forced_restore, paths, path, content, expected_sha256)
+            return
+
         def check(before: bytes | None) -> None:
             writer.check_restore(path, before, content)
 
-        await asyncio.to_thread(tasksink.refuse_tasks_note, paths, path)
         await asyncio.to_thread(writer.put, paths, path, content, expected_sha256, check)
+
+    async def restore_status(
+        self, paths: Paths, details: dict[str, Any], force: bool = False
+    ) -> bool:
+        """Undo a `task.update_status` (`details`: what `apply` answered, with `before_line`).
+        `force` as for `restore`: only `horae undo --force`."""
+        return await asyncio.to_thread(tasksink.restore_status, paths, details, force is True)
