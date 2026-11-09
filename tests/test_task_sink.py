@@ -19,7 +19,7 @@ from horae_sdk import Applied, ApplyRequest, Paths, SinkError
 from horae_sdk.testing import operation
 
 import horae_obsidian.tasksink as tasksink
-from horae_obsidian import build
+from horae_obsidian import NAME, build
 from horae_obsidian.index import MAX_ENTRIES, Link, TaskIndex, block_of
 from horae_obsidian.sink import TASK_TOOL, TOOL, VaultSink
 from horae_obsidian.source import open_tasks
@@ -132,12 +132,9 @@ def test_cancel_and_todo_undo_and_restore(vault: Path) -> None:
     note = vault / "Notes" / "week.md"
     key = key_of(vault, "Pay rent #home")
     done = apply(vault, status(key, "done"))
-    assert "before_line" not in done.details  # digests only, until the core wires task undo
-    with pytest.raises(SinkError) as raised:
-        tasksink.restore_status(wire(vault), done.details)
-    assert raised.value.kind == "not_restorable"
     original = "- [ ] Pay rent 📅 2026-11-10 #home"
-    undo = {**done.details, "before_line": original}  # what the core's journal will supply
+    assert done.details["before_line"] == original  # the line as it was before the change
+    undo = done.details
     assert tasksink.restore_status(wire(vault), undo) is True
     assert note.read_bytes() == NOTE  # the undo puts the exact line back
     assert tasksink.restore_status(wire(vault), undo) is False  # already restored
@@ -146,7 +143,7 @@ def test_cancel_and_todo_undo_and_restore(vault: Path) -> None:
     # an undo over a line edited since is refused
     note.write_bytes(note.read_bytes().replace("❌ 2026-11-08".encode(), "❌ 2026-11-07".encode()))
     with pytest.raises(SinkError) as raised:
-        tasksink.restore_status(wire(vault), {**cancelled.details, "before_line": original})
+        tasksink.restore_status(wire(vault), cancelled.details)
     assert raised.value.kind == "target_changed"
     reopened = apply(vault, status(key, "todo"))
     assert reopened.details["changed"] is True
@@ -458,3 +455,204 @@ def test_task_intents_through_the_sink_operations(vault: Path) -> None:
     assert result["target"] == key
     assert result["details"]["changed"] is True
     assert "✅".encode() in (vault / "Notes" / "week.md").read_bytes()
+
+
+# --- horae undo: before_line, restore_status, force (#15) ----------------------------------
+
+
+def restore_status(vault: Path, details: dict[str, Any], **extra: Any) -> bool:
+    return asyncio.run(VaultSink([TOOL, TASK_TOOL]).restore_status(wire(vault), details, **extra))
+
+
+def week(vault: Path) -> bytes:
+    return (vault / "Notes" / "week.md").read_bytes()
+
+
+def edited(vault: Path, old: str, new: str) -> bytes:
+    data = week(vault).replace(old.encode(), new.encode())
+    (vault / "Notes" / "week.md").write_bytes(data)
+    return data
+
+
+def test_before_line_is_the_line_without_its_ending_and_bounded(vault: Path) -> None:
+    key = key_of(vault, "Pay rent #home")
+    details = apply(vault, status(key, "done")).details
+    assert details["before_line"] == "- [ ] Pay rent 📅 2026-11-10 #home"  # CRLF note: no \r
+    assert (
+        details["before_line_sha256"] == hashlib.sha256(details["before_line"].encode()).hexdigest()
+    )
+    json.dumps(details, allow_nan=False)
+    # a line over the bound is not recorded (digests only: not restorable)
+    long_line = "- [ ] Long " + "x" * tasksink.MAX_BEFORE_LINE
+    (vault / "Notes" / "long.md").write_bytes(long_line.encode() + b"\n")
+    long_key = key_of(vault, "Long " + "x" * tasksink.MAX_BEFORE_LINE)
+    long = apply(vault, status(long_key, "done")).details
+    assert long["changed"] is True
+    assert "before_line" not in long
+    with pytest.raises(SinkError) as raised:
+        restore_status(vault, long)
+    assert raised.value.kind == "not_restorable"
+    # a line at the bound is recorded
+    exact = "- [ ] " + "y" * (tasksink.MAX_BEFORE_LINE - 6)
+    (vault / "Notes" / "exact.md").write_bytes(exact.encode() + b"\n")
+    exact_key = key_of(vault, "y" * (tasksink.MAX_BEFORE_LINE - 6))
+    assert apply(vault, status(exact_key, "done")).details["before_line"] == exact
+    # an invalid UTF-8 line is never recorded (it could not travel as JSON unchanged)
+    key = key_of(vault, "Call \udcff Ada")
+    odd = apply(vault, status(key, "done")).details
+    assert odd["changed"] is True
+    assert "before_line" not in odd
+
+
+def test_restore_status_is_served_and_answers_restored(vault: Path) -> None:
+    key = key_of(vault, "Pay rent #home")
+    details = apply(vault, status(key, "done")).details
+    assert week(vault) != NOTE
+    assert restore_status(vault, details) is True
+    assert week(vault) == NOTE
+    assert restore_status(vault, details) is False  # already restored
+    assert restore_status(vault, {"changed": False}) is False
+
+    async def over_mcp() -> Any:
+        plugin = build()
+        return await operation(
+            plugin, f"{NAME}.restore_status", {"paths": wire(vault).to_wire(), "details": details}
+        )
+
+    apply(vault, status(key, "done"))
+    assert anyio.run(over_mcp) == {"restored": True}
+    assert week(vault) == NOTE
+
+
+def test_forced_restore_status_over_mcp_passes_force_only_when_true(vault: Path) -> None:
+    key = key_of(vault, "Pay rent #home")
+    details = apply(vault, status(key, "done")).details
+    edited(vault, "✅ 2026-11-08", "✅ 2026-11-01")
+
+    async def call(**extra: Any) -> Any:
+        return await operation(
+            build(),
+            f"{NAME}.restore_status",
+            {"paths": wire(vault).to_wire(), "details": details, **extra},
+        )
+
+    for extra in ({}, {"force": False}):
+        reply = anyio.run(lambda extra=extra: call(**extra))  # type: ignore[misc]
+        assert reply["error"]["kind"] == "target_changed"
+    assert anyio.run(lambda: call(force=True)) == {"restored": True}
+    assert week(vault) == NOTE
+
+
+def test_restore_status_refuses_a_line_edited_since_without_force(vault: Path) -> None:
+    key = key_of(vault, "Pay rent #home")
+    details = apply(vault, status(key, "done")).details
+    now = edited(vault, "✅ 2026-11-08", "✅ 2026-11-01")
+    for extra in ({}, {"force": False}, {"force": None}, {"force": "yes"}, {"force": 1}):
+        with pytest.raises(SinkError) as raised:
+            restore_status(vault, details, **extra)
+        assert raised.value.kind == "target_changed"
+        assert week(vault) == now  # untouched
+
+
+def test_forced_restore_status_replaces_only_that_line(vault: Path) -> None:
+    key = key_of(vault, "Pay rent #home")
+    details = apply(vault, status(key, "done")).details
+    edited(vault, "✅ 2026-11-08", "✅ 2026-11-01")
+    edited(vault, "Water", "Water the plants")  # another line, edited too
+    now = week(vault)
+    assert restore_status(vault, details, force=True) is True
+    assert changed_lines(now, week(vault)) == [
+        (
+            "- [x] Pay rent 📅 2026-11-10 ✅ 2026-11-01 #home\r".encode(),
+            "- [ ] Pay rent 📅 2026-11-10 #home\r".encode(),
+        )
+    ]
+
+
+def test_forced_restore_status_never_guesses_another_task(vault: Path) -> None:
+    key = key_of(vault, "Pay rent #home")
+    details = apply(vault, status(key, "done")).details
+    # the user rewrote the task itself (another description): nothing is overwritten
+    now = edited(vault, "Pay rent", "Pay the landlord")
+    with pytest.raises(SinkError) as raised:
+        restore_status(vault, details, force=True)
+    assert raised.value.kind == "target_changed"
+    assert week(vault) == now
+    # the task line moved: the recorded line number now holds another task
+    shifted = b"\xef\xbb\xbf# Week\r\n- [ ] New first\r\n" + now.split(b"\r\n", 1)[1]
+    (vault / "Notes" / "week.md").write_bytes(shifted)
+    with pytest.raises(SinkError):
+        restore_status(vault, details, force=True)
+    assert week(vault) == shifted
+
+
+def test_forced_restore_status_finds_a_moved_task_by_its_block_id(vault: Path) -> None:
+    created = apply(
+        vault,
+        {"type": "task.create", "title": "Linked", "fingerprint": "fp-1"},
+        note="Tasks.assistant.md",
+    )
+    assert created.details is not None
+    note = vault / "Tasks.assistant.md"
+    key = next(t.key for d in scan(vault).documents for t in d.tasks if "Linked" in t.description)
+    details = apply(vault, status(key, "done")).details
+    done = note.read_bytes()
+    edited_line = done.replace(b"- [x]", b"- [ ] ").replace(b"\xe2\x9c\x85", b"")
+    note.write_bytes(b"- [ ] first\n" + edited_line)  # edited, and its line number moved
+    with pytest.raises(SinkError) as raised:
+        restore_status(vault, details)
+    assert raised.value.kind in {"target_changed", "not_restorable"}
+    # the line has changed (and moved): forced finds it again by its block id
+    note.write_bytes(b"- [ ] first\n" + done.replace(b"Linked", b"Linked now", 1))
+    before = note.read_bytes()
+    assert restore_status(vault, details, force=True) is True
+    assert note.read_bytes().startswith(b"- [ ] first\n")
+    assert changed_lines(before, note.read_bytes())[0][0].startswith(b"- [x]")
+
+
+def test_restore_status_refuses_a_journal_without_before_line(vault: Path) -> None:
+    key = key_of(vault, "Pay rent #home")
+    details = apply(vault, status(key, "done")).details
+    old = {k: v for k, v in details.items() if k != "before_line"}  # a pre-#15 journal
+    now = week(vault)
+    for force in (False, True):
+        with pytest.raises(SinkError) as raised:
+            restore_status(vault, old, force=force)
+        assert raised.value.kind == "not_restorable"
+    forged = {**details, "before_line": "- [ ] Something else"}  # not the digest recorded
+    with pytest.raises(SinkError) as raised:
+        restore_status(vault, forged, force=True)
+    assert raised.value.kind == "not_restorable"
+    assert week(vault) == now
+
+
+def test_restore_status_refuses_a_path_outside_the_vault_even_with_force(
+    vault: Path, tmp_path: Path
+) -> None:
+    key = key_of(vault, "Pay rent #home")
+    details = apply(vault, status(key, "done")).details
+    elsewhere = tmp_path / "other"
+    (elsewhere / "Notes").mkdir(parents=True)
+    (elsewhere / "Notes" / "week.md").write_bytes(NOTE)  # another vault, the note unchanged
+    for bad in ("../other/Notes/week.md", "/etc/passwd", "Notes/../../week.md", ".hidden/x.md"):
+        with pytest.raises(SinkError) as raised:
+            restore_status(vault, {**details, "path": bad}, force=True)
+        assert raised.value.kind in {"path_invalid", "not_restorable", "target_changed"}
+    now = week(vault)
+    assert now != NOTE  # the vault's own note was never touched by the refusals
+    other_vault = Paths(write=(str(elsewhere),))
+    # Another vault is the core's `sink_mismatch` (identity check); here it writes nothing
+    # because that vault's note holds no changed line.
+    wrote = asyncio.run(VaultSink([TASK_TOOL]).restore_status(other_vault, details, force=True))
+    assert wrote is False
+    assert (elsewhere / "Notes" / "week.md").read_bytes() == NOTE
+    assert week(vault) == now
+
+
+def test_restore_status_in_a_writer_note_relinks_the_index(vault: Path) -> None:
+    apply(vault, {"type": "task.create", "title": "Linked", "fingerprint": "fp-2"})
+    key = next(t.key for d in scan(vault).documents for t in d.tasks if "Linked" in t.description)
+    details = apply(vault, status(key, "done")).details
+    assert restore_status(vault, details) is True
+    again = apply(vault, status(key, "done"))  # the index agrees with the restored line
+    assert again.details["changed"] is True

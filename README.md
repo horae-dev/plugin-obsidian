@@ -190,8 +190,14 @@ Recorded from the review of #4 (maintainer: "go with what's good for the project
 9. **Relinking**: after a status change the index records the line's new digest, tried twice;
    when it still fails (`index: "stale"`), the line is only reported as `edited` (ownership
    does not depend on the digest) and the next change re-records it.
-10. **No line text in `Applied.details`** (digests only) until the core wires task undo;
-    `restore_status` takes the replaced line from the caller.
+10. **`before_line` in `Applied.details`**: the line a status change replaced, exactly as it
+    was (no line ending), at most 4096 bytes of UTF-8; a longer line, or one with invalid
+    UTF-8, is not recorded and its change is not restorable (`not_restorable`). The core
+    journals the details and hands them back to `<ns>.restore_status` (`horae undo`), which
+    needs horae-sdk 0.4. A change journalled before it (digests only) is not restorable.
+    `restore_status` answers `{"restored": bool}`: `false` when the line is already as before;
+    a line edited since is refused (`target_changed`, which the core reports as "use
+    --force").
 11. **Tombstones**: when an indexed task line is gone from the vault (seen by a complete scan
     during a `task.create`), it becomes a tombstone; `task.create` of that fingerprint is
     `dismissed` for `recreate_after_days` (default 30), then written again.
@@ -235,9 +241,17 @@ the same conventions as its dry-run diff) and calls the sink operations `obsidia
 - **`horae undo`** puts every changed note back. In a note Horae does not own it may change
   any number of blocks (each one well-formed marker pair before and after), but nothing
   outside them; a malformed or prose marker elsewhere does not stop it. If you edited such a
-  note **outside** its blocks after the run, the undo is refused (`not_owned`), even with
-  `horae undo --force`, which would rewrite the whole note: **repair it by hand** (the
-  journal keeps the original bytes), or move your edit, undo, then put it back.
+  note **outside** its blocks after the run, the undo is refused (`not_owned`). With
+  `horae undo --force` (and only then: the plugin never infers it) the blocks are put back
+  and your edit outside them is kept, as long as the note holds the same blocks, each one
+  well-formed, as the journalled original; a note that would have to be created or removed,
+  or whose blocks differ, stays refused: repair it by hand (the journal keeps the original
+  bytes).
+- **`horae undo` of a task status change** puts the recorded `before_line` back when the note
+  still holds the changed line exactly once. A task line you edited since is refused
+  (`target_changed`). With `--force` the same task is found again, by its `^h-` block id or
+  else by its line number and description, and that one line is replaced; nothing else in the
+  note changes. A task that cannot be found again is still refused.
 - **The vault** is the single `paths.write` entry granted in `horae.lock`, an absolute path
   (the manifest asks for none). Note paths end in `.md` with no hidden segment (never
   `.obsidian/`), no `..`, `\`, `:`, control character or lone surrogate, at most 255 UTF-8

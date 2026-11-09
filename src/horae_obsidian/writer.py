@@ -315,6 +315,61 @@ def check_restore(path: str, before: bytes | None, after: bytes | None) -> None:
     _confined(before, after, None, path)
 
 
+def merge_forced(path: str, current: bytes, original: bytes) -> bytes:
+    """`horae undo --force` of a note Horae does not own, edited outside its blocks since: the
+    note as it is now, with each block put back as `original` has it. Only blocks that are one
+    well-formed pair in both texts (and the same set in both) are touched: the bytes outside
+    them stay the user's. Anything else is `not_owned` (or `block_ambiguous`)."""
+    old, new = _text(original, path), _text(current, path)
+    was, now = _marks(old), _marks(new)
+    names = was.names() | now.names()
+    pairs: list[tuple[tuple[int, int], tuple[int, int]]] = []
+    for name in names:
+        then, later = was.span(name), now.span(name)
+        if then is not None and later is not None:
+            pairs.append((then, later))
+    if len(pairs) != len(names):
+        unclear = any(
+            name in marks.names() and marks.span(name) is None
+            for name in names
+            for marks in (was, now)
+        )
+        if unclear:
+            raise SinkError("block_ambiguous", f"{path}: a block is not one marker pair")
+        raise _not_owned(path, "Horae does not own this note and the blocks are not the same")
+    parts: list[str] = []
+    last = 0
+    for then, later in sorted(pairs, key=lambda pair: pair[1][0]):
+        parts += [new[last : later[0]], old[then[0] : then[1]]]
+        last = later[1]
+    parts.append(new[last:])
+    merged = "".join(parts).encode("utf-8")
+    _confined(current, merged, None, path)  # the blocks alone changed, whatever happened
+    return merged
+
+
+def forced_restore(paths: Paths, path: str, content: bytes | None, expected: str | None) -> None:
+    """`restore` under `horae undo --force`. A restore the unforced rules accept is the same
+    write as before. One they refuse as `not_owned` (the note was edited outside Horae's
+    blocks) puts back the blocks only (`merge_forced`); the write stays a compare-and-swap on
+    the bytes the core read, and a note to create or remove stays refused."""
+    current = read(paths, path)
+    if sha256(current) != expected:
+        raise _changed(str(path))
+    wanted = content
+    try:
+        check_restore(str(path), current, content)
+    except SinkError as error:
+        if error.kind != "not_owned" or current is None or content is None:
+            raise
+        wanted = merge_forced(str(path), current, content)
+
+    def check(before: bytes | None) -> None:
+        check_restore(str(path), before, wanted)
+
+    put(paths, path, wanted, expected, check)
+
+
 # --- paths --------------------------------------------------------------------------------------
 
 

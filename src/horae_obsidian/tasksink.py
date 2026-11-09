@@ -28,8 +28,10 @@ instance time zone, by its rules: `clock.local`, rounded up to the minute), befo
 date fields. A task already in the asked state is left as it is (`changed: false`), and so
 is a recurring task asked `done` or `cancelled` (`details.recurring`: Horae never ends a
 recurrence, tick it in Obsidian). `Applied.details` records the note, the line and both line
-digests (not the line itself: the core does not undo task changes yet); `restore_status`
-puts a line back given it.
+digests and the line it replaced (`before_line`, at most `MAX_BEFORE_LINE` bytes of UTF-8;
+left out for a longer line or one with invalid UTF-8, which is then not restorable);
+`restore_status` puts that line back (`horae undo`). Only `horae undo --force` (`force`, never
+inferred) restores a task line edited since, and then only the line of the same task.
 
 **`task.create`** (`create`). The line is `horae_sdk.tasks.task_line` (title escaped, link
 inert) with Horae's order: `⏰` before `📅`, and `^h-<hash>` last (`render_line`: horae-sdk
@@ -72,6 +74,8 @@ from horae_obsidian.vault import Scan, VaultError, safe_path, scan
 
 TASK_TYPES = ("task.create", "task.update_status")
 STATUSES = ("todo", "done", "cancelled", "snoozed")
+MAX_BEFORE_LINE = 4096
+"""The most bytes (UTF-8) of the replaced line `Applied.details` records as `before_line`."""
 RECREATE_AFTER_DAYS = 30
 """How long a task the user deleted is not created again (`recreate_after_days`)."""
 MAX_RECREATE_AFTER_DAYS = 3650
@@ -311,6 +315,11 @@ def update_status(paths: Paths, intent: dict[str, Any], clock: Clock = now) -> A
     raise AssertionError("unreachable")  # pragma: no cover
 
 
+def _recordable(text: str) -> bool:
+    """Whether the line can be recorded as it is: JSON-safe (valid UTF-8) and bounded."""
+    return json_safe(text) == text and len(text.encode("utf-8")) <= MAX_BEFORE_LINE
+
+
 def _write_status(
     paths: Paths, view: View, target: str, located: Task, intent: dict[str, Any], clock: Clock
 ) -> Applied:
@@ -324,6 +333,8 @@ def _write_status(
         "before_line_sha256": task.line_sha256,
         "before_sha256": document.sha256,
     }
+    if _recordable(task.line.text):
+        details["before_line"] = task.line.text
     fingerprint = view.source_fingerprint(task)
     if fingerprint is not None:
         details["source_fingerprint"] = fingerprint
@@ -376,17 +387,39 @@ def _relink(paths: Paths, provenance: Provenance, task: Task, line_sha256: str) 
     return False
 
 
-def restore_status(paths: Paths, details: dict[str, Any]) -> bool:
+def _forced_match(document: Document, details: dict[str, Any], before_line: str) -> Task | None:
+    """`horae undo --force`: the task whose line was edited since, found again by what the user
+    did not touch. The one task of the note with the replaced line's `^h-` block id, else the
+    one on the recorded line number with the replaced line's description. `None` otherwise
+    (nothing else is ever overwritten)."""
+    old = parse(before_line.encode("utf-8", ENCODING_ERRORS), document.path).tasks
+    if len(old) != 1:
+        return None
+    wanted = old[0]
+    if wanted.block_id is not None:
+        found = [t for t in document.tasks if t.block_id == wanted.block_id]
+    else:
+        found = [
+            t
+            for t in document.tasks
+            if t.line.number == details.get("line") and t.description == wanted.description
+        ]
+    return found[0] if len(found) == 1 else None
+
+
+def restore_status(paths: Paths, details: dict[str, Any], force: bool = False) -> bool:
     """Undo a status change: put back `details["before_line"]` (the line `update_status`
-    replaced; its details do not carry it: the core's undo will supply it from its own
-    journal) if the note still holds the changed line exactly once (`target_changed`
-    otherwise). Returns whether it wrote (false: nothing was changed, or already restored)."""
+    replaced, which the core's journal hands back) if the note still holds the changed line
+    exactly once (`target_changed` otherwise). Returns whether it wrote (false: nothing was
+    changed, or already restored). `force` (only `horae undo --force`, never inferred) also
+    restores a line edited since, when the same task is found again (`_forced_match`): that one
+    line is replaced, nothing else."""
     if not details.get("changed"):
         return False
     path, before_line = details.get("path"), details.get("before_line")
     old_sha, new_sha = details.get("before_line_sha256"), details.get("after_line_sha256")
     recorded = isinstance(path, str) and isinstance(before_line, str)
-    if not recorded or _sha(str(before_line)) != old_sha:
+    if not recorded or _sha(str(before_line)) != old_sha or re.search(r"[\r\n]", str(before_line)):
         raise SinkError("not_restorable", "the change did not record the line it replaced")
     path, before_line = str(path), str(before_line)
     data = writer.read(paths, path)
@@ -396,6 +429,9 @@ def restore_status(paths: Paths, details: dict[str, Any]) -> bool:
     changed = [t for t in document.tasks if t.line_sha256 == new_sha]
     if not changed and any(t.line_sha256 == old_sha for t in document.tasks):
         return False  # already restored
+    if not changed and force is True:
+        forced = _forced_match(document, details, before_line)
+        changed = [] if forced is None else [forced]
     if len(changed) != 1:
         raise SinkError("target_changed", f"{safe_path(path)}: the task line changed since")
     task = changed[0]
@@ -556,6 +592,7 @@ def _append(paths: Paths, note: str, before: bytes | None, line: str, block: str
 
 __all__ = [
     "DEFAULT_NOTE",
+    "MAX_BEFORE_LINE",
     "RECREATE_AFTER_DAYS",
     "TASK_TYPES",
     "create",
