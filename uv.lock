@@ -11,6 +11,9 @@ resolution-markers = [
 exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
 exclude-newer-span = "P7D"
 
+[options.exclude-newer-package]
+horae-sdk = false
+
 [[package]]
 name = "annotated-types"
 version = "0.8.0"
@@ -439,7 +442,7 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "horae-sdk", git = "https://github.com/horae-dev/horae?subdirectory=sdk&branch=main" }]
+requires-dist = [{ name = "horae-sdk", specifier = ">=0.9,<0.10" }]
 
 [package.metadata.requires-dev]
 dev = [
@@ -454,12 +457,16 @@ dev = [
 
 [[package]]
 name = "horae-sdk"
-version = "0.4.0"
-source = { git = "https://github.com/horae-dev/horae?subdirectory=sdk&branch=main#150f2e18805f59a32d3fc9f97a467bd4d0a85632" }
+version = "0.9.0"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
     { name = "mcp" },
     { name = "pyyaml" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ee/b6/bb3a29ce9581520c136096c36782e0175a23201aca987d08dc46eb2e9380/horae_sdk-0.9.0.tar.gz", hash = "sha256:34f2df0235b9580223afce7b892d4da7e3e494f1454af1955f5dc6aeb5812756", size = 63533, upload-time = "2026-11-13T18:47:07.199Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b3/40/a5a59985ccff1faab2ef19dd6a16b1575be684c7d4a2078b7760da5a9a5c/horae_sdk-0.9.0-py3-none-any.whl", hash = "sha256:93306f189f9ef9cd4f22c84d8fbac4adbb1f6fa2ee0c2af3d779ed91889236f9", size = 57378, upload-time = "2026-11-13T18:47:06.249Z" },
 ]
 
 [[package]]
