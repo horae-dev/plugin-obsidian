@@ -27,7 +27,7 @@ from horae_obsidian.writer import NOTE_TYPES
 NAME = "obsidian"
 """The plugin's name, also the namespace of its refs (`obsidian.open_tasks`) and
 fingerprints (`obsidian:id:…`)."""
-VERSION = "0.1.1"
+VERSION = "0.1.2"
 COMMAND = ["python3", "-m", "horae_obsidian"]
 """`runtime.command` of `plugin.yaml`. When installing, pin an absolute interpreter that has
 this package (the host's `PATH` is fixed and its working directory empty)."""

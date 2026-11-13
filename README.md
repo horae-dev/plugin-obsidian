@@ -425,8 +425,8 @@ Stories, estimates and acceptance criteria are in this repository's [issues](../
 The repository was scaffolded from [`template-plugin`](https://github.com/horae-dev/template-plugin):
 an MCP stdio server built on [`horae-sdk`](https://github.com/horae-dev/horae/tree/main/sdk), a
 `plugin.yaml` generated from the code, and CI (lockfile, ruff, mypy strict, pytest with an 85%
-coverage gate, gitleaks, and the aggregate **CI OK** check). `horae-sdk` is not on PyPI yet:
-`pyproject.toml` takes it from the core repository's `main` and `uv.lock` pins the commit.
+coverage gate, gitleaks, and the aggregate **CI OK** check).
+`horae-sdk` comes from PyPI, its version pinned with hashes in `uv.lock`.
 
 ```
 uv sync
