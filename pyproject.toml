@@ -1,6 +1,6 @@
 [project]
 name = "horae-plugin-obsidian"
-version = "0.1.2"
+version = "0.1.3"
 description = "Horae plugin: read and write an Obsidian vault (Obsidian Tasks syntax)."
 readme = "README.md"
 license = "Apache-2.0"
@@ -30,9 +30,9 @@ dev = [
 
 [tool.uv]
 required-version = ">=0.13"
-exclude-newer = "7 days"
-# Our own SDK, released from the core repository by the maintainers: no cooldown.
-exclude-newer-package = { horae-sdk = false }
+# No exclude-newer here: `horae plugin add` runs `uv sync --locked --no-config`, which ignores
+# this table, so a lock resolved with it would not match. The 7-day cooldown on new releases
+# is Renovate's minimumReleaseAge (renovate.json).
 
 [tool.ruff]
 line-length = 100
