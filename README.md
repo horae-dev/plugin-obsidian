@@ -395,8 +395,15 @@ and the integer number, never from GitHub's text.
   reference: `[acme-org/api#12](…/actions/runs/9100) feature/cache — Nightly / unit failing since 2026-10-29`.
 - Any other `github.*` source: the reference and the title, by repository and number.
 
-The source's `truncated` (more items than it returned) and `partial` (GitHub hid results,
-typically SAML single sign-on) flags become alerts, as the task source's do.
+The source's `truncated` flag (more items than it returned) becomes an alert, as the task
+source's flags do, and so does each `hidden` entry (plugin-github 0.5.2): one alert per owner
+and reason, worded by the reason, for example
+`github.updates: acme-org: hidden by SAML single sign-on (authorise the token for SSO) (3)`
+(`token_lifetime`, `token_not_allowed`, `saml`, `ip_allow_list`, `not_accessible`,
+`forbidden`; `some items` when the owner is unknown), plus the errors they do not explain
+(`N results not found by GitHub`). From an older plugin-github without `hidden`, `partial`
+gives one line, `GitHub hid some results (N errors)`. A CI failure whose check names the token
+cannot read (`checks_hidden`, no names) reads `checks hidden from this token`.
 
 **Untrusted text is inert.** Every task description, event title, pull request title and LLM
 string goes through the SDK's `escape_title` and is written as a plain bullet, never as a

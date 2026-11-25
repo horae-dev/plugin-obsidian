@@ -1,0 +1,41 @@
+{
+  "source": "github.ci_failures",
+  "data": {
+    "kind": "ci_failures",
+    "day": "2026-10-30",
+    "items": [
+      {
+        "fingerprint": "github:ci:acme-missing-ok:branch-main:d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1::fccf0cb50177ef27",
+        "repo": "acme-missing/ok",
+        "branch": "main",
+        "number": null,
+        "sha": "d1d1d1d",
+        "checks": [],
+        "more_checks": 0,
+        "unread_checks": 0,
+        "checks_hidden": true,
+        "since": "2026-10-29",
+        "url": "https://github.com/acme-missing/ok/commit/d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1",
+        "title": "main: checks hidden from this token failing since 2026-10-29 (d1d1d1d)"
+      }
+    ],
+    "checked": 1,
+    "truncated": false,
+    "filtered": 0,
+    "skipped": 1,
+    "partial": true,
+    "errors": 2,
+    "hidden": [
+      {
+        "owner": "acme-lifetime",
+        "reason": "token_lifetime",
+        "count": 1
+      },
+      {
+        "owner": "acme-missing",
+        "reason": "not_accessible",
+        "count": 1
+      }
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "source": "github.updates",
+  "data": {
+    "kind": "updates",
+    "day": "2026-10-30",
+    "since": "2026-10-16",
+    "items": [],
+    "checked": 0,
+    "truncated": false,
+    "filtered": 0,
+    "skipped": 4,
+    "partial": true,
+    "errors": 4,
+    "hidden": [
+      {
+        "owner": "acme-lifetime",
+        "reason": "token_lifetime",
+        "count": 4
+      }
+    ]
+  }
+}

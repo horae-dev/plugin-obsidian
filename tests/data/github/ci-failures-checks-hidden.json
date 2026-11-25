@@ -1,0 +1,30 @@
+{
+  "source": "github.ci_failures",
+  "data": {
+    "kind": "ci_failures",
+    "day": "2026-10-30",
+    "items": [
+      {
+        "fingerprint": "github:ci:acme-checks-private-app:branch-main:d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1::0e01f79415356a9c",
+        "repo": "acme-checks/private-app",
+        "branch": "main",
+        "number": null,
+        "sha": "d1d1d1d",
+        "checks": [],
+        "more_checks": 0,
+        "unread_checks": 0,
+        "checks_hidden": true,
+        "since": "2026-10-29",
+        "url": "https://github.com/acme-checks/private-app/commit/d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1",
+        "title": "main: checks hidden from this token failing since 2026-10-29 (d1d1d1d)"
+      }
+    ],
+    "checked": 1,
+    "truncated": false,
+    "filtered": 0,
+    "skipped": 0,
+    "partial": false,
+    "errors": 0,
+    "hidden": []
+  }
+}
