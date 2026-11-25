@@ -34,7 +34,8 @@ nothing in it reads `_None._`. At most `max_items` lines per section or task gro
 
 **Alerts** say what is missing, so a short note is not read as a quiet day: the source left
 tasks out (`more`, `output_cut`, `withheld`, `hidden`, `skipped`), a `github.*` source said
-it cut its list (`truncated`) or GitHub hid results (`partial`), entries that could not be
+it cut its list (`truncated`) or GitHub hid results (one alert per `hidden` owner and reason,
+or `partial` from an older plugin-github), entries that could not be
 read, and a source listed in `expect` that gave no data (it failed or was not collected).
 
 **The template** is the `template` parameter (per instance: the pipeline's parameters are
@@ -130,6 +131,18 @@ _EVENTS = {
     "review_requested": "requested your review",
 }
 """`github.updates`' `event` in words."""
+_HIDDEN = {
+    "token_lifetime": "hidden because the token's lifetime is over the organisation's limit"
+    " (set an expiry of 366 days or less)",
+    "token_not_allowed": "hidden because the organisation does not allow this token"
+    " (approve it, or allow fine-grained tokens)",
+    "saml": "hidden by SAML single sign-on (authorise the token for SSO)",
+    "ip_allow_list": "hidden by the organisation's IP allow list",
+    "not_accessible": "not readable with this token",
+    "forbidden": "hidden: GitHub refused access",
+}
+"""plugin-github's `hidden[].reason` in words (an unknown reason reads as `forbidden`)."""
+_LOGIN = re.compile(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})")
 
 
 class RenderError(PluginError):
@@ -393,7 +406,14 @@ def _github_item(raw: object, s: Settings) -> tuple[tuple[int, float, str, int, 
         names = [c for c in checks if isinstance(c, str) and c][:10]
         more = _count(raw.get("more_checks"))
         listed = ", ".join(names) + (f" and {more} more" if more else "")
-        parts.append(_line(listed) if names else "failing checks")
+        hidden = raw.get("checks_hidden") is True
+        parts.append(
+            _line(listed)
+            if names
+            else "checks hidden from this token"
+            if hidden
+            else "failing checks"
+        )
         unread = _count(raw.get("unread_checks"))
         if unread:
             parts.append(f"({unread} checks not read)")
@@ -416,6 +436,33 @@ def _github_item(raw: object, s: Settings) -> tuple[tuple[int, float, str, int, 
     if at is not None:
         return (0, -at.timestamp(), "", 0, line), line
     return (1, 0.0, repo.lower(), -1 if number is None else number, line), line
+
+
+def _hidden_alerts(name: str, data: Mapping[str, Any]) -> list[str]:
+    """Why a `github.*` source's results are missing: one alert per `hidden` entry
+    (plugin-github 0.5.2), then the errors those do not explain (`NOT_FOUND`); without
+    `hidden` (an older plugin-github), one line from `partial` and `errors`."""
+    errors = _count(data.get("errors"))
+    hidden = data.get("hidden")
+    if not isinstance(hidden, list):
+        if data.get("partial") is not True:
+            return []
+        counted = f" ({errors} errors)" if errors else ""
+        return [f"{name}: GitHub hid some results{counted}"]
+    alerts: list[str] = []
+    explained = 0
+    for entry in hidden[:MAX_ITEMS]:
+        if not isinstance(entry, Mapping):
+            continue
+        owner = entry.get("owner")
+        who = _line(owner, 60) if isinstance(owner, str) and _LOGIN.fullmatch(owner) else ""
+        why = _HIDDEN.get(entry.get("reason"), _HIDDEN["forbidden"])  # type: ignore[arg-type]
+        count = _count(entry.get("count"))
+        explained += count
+        alerts.append(f"{name}: {who or 'some items'}: {why}" + (f" ({count})" if count else ""))
+    if data.get("partial") is True and errors > explained:
+        alerts.append(f"{name}: {errors - explained} results not found by GitHub")
+    return alerts
 
 
 def _collect(input: object, settings: Settings) -> Collected:
@@ -483,10 +530,7 @@ def _collect(input: object, settings: Settings) -> Collected:
                 name = ref if _REF.fullmatch(ref) else "a github source"
                 if data.get("truncated") is True:
                     out.alerts.append(f"{name} had more items than it returned (truncated)")
-                if data.get("partial") is True:
-                    errors = _count(data.get("errors"))
-                    hidden = f" ({errors} errors)" if errors else ""
-                    out.alerts.append(f"{name}: GitHub hid some results{hidden}")
+                out.alerts += _hidden_alerts(name, data)
     if unreadable:
         out.alerts.append(f"{unreadable} sources returned data that could not be read")
     if skipped:

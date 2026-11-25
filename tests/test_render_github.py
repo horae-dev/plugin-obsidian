@@ -245,3 +245,121 @@ def test_hostile_pieces_never_meet_into_live_syntax(hostile: str) -> None:
 def test_items_without_a_title_or_checks_are_counted_as_unread() -> None:
     text = note({"source": "github.updates", "data": {"items": [{"repo": "a/b"}, "x"]}})
     assert "2 entries could not be read" in text
+
+
+# plugin-github 0.5.2: `hidden` says why results are missing, `checks_hidden` on CI failures.
+
+
+@pytest.mark.parametrize(
+    ("name", "alerts"),
+    [
+        (
+            "updates-token-lifetime",
+            [
+                "github.updates: acme-lifetime: hidden because the token's lifetime is over the"
+                " organisation's limit (set an expiry of 366 days or less) (4)"
+            ],
+        ),
+        (
+            "ci-failures-hidden-reasons",
+            [
+                "github.ci_failures: acme-lifetime: hidden because the token's lifetime is over"
+                " the organisation's limit (set an expiry of 366 days or less) (1)",
+                "github.ci_failures: acme-missing: not readable with this token (1)",
+            ],
+        ),
+        (
+            "ci-failures-saml-hidden",
+            [
+                "github.ci_failures: acme-saml: hidden by SAML single sign-on"
+                " (authorise the token for SSO) (1)",
+                "github.ci_failures: acme-sso: hidden by SAML single sign-on"
+                " (authorise the token for SSO) (1)",
+                "github.ci_failures: 1 results not found by GitHub",  # errors 3, 2 explained
+            ],
+        ),
+    ],
+)
+def test_hidden_recordings_give_one_alert_per_owner_and_reason(
+    name: str, alerts: list[str]
+) -> None:
+    shown = note(recorded(name)).split("\n\n")[0]
+    assert shown == "\n".join(f"- {alert}" for alert in alerts)
+    assert "GitHub hid some results" not in shown
+
+
+def hidden(*entries: object, **data: Any) -> dict[str, Any]:
+    return {"source": "github.updates", "data": {"items": [], "hidden": list(entries), **data}}
+
+
+@pytest.mark.parametrize(
+    ("reason", "words"),
+    [
+        ("token_lifetime", "hidden because the token's lifetime is over the organisation's limit"),
+        ("token_not_allowed", "hidden because the organisation does not allow this token"),
+        ("saml", "hidden by SAML single sign-on (authorise the token for SSO)"),
+        ("ip_allow_list", "hidden by the organisation's IP allow list"),
+        ("not_accessible", "not readable with this token"),
+        ("forbidden", "hidden: GitHub refused access"),
+        ("something new", "hidden: GitHub refused access"),
+        (None, "hidden: GitHub refused access"),
+    ],
+)
+def test_each_reason_has_its_own_words(reason: object, words: str) -> None:
+    text = note(hidden({"owner": "horae-dev", "reason": reason, "count": 9}, partial=True))
+    assert text.startswith(f"- github.updates: horae-dev: {words}")
+    assert text.split("\n")[0].endswith(" (9)")
+
+
+def test_an_unknown_owner_reads_some_items() -> None:
+    text = note(hidden({"owner": None, "reason": "saml", "count": 2}))
+    assert text.startswith("- github.updates: some items: hidden by SAML single sign-on")
+
+
+@pytest.mark.parametrize(
+    "owner", ["[[x]]", "a b", "-lead", "x" * 40, "a#tag", "a::b", "evil.example", 3]
+)
+def test_an_owner_that_is_not_a_login_is_not_written(owner: object) -> None:
+    text = note(hidden({"owner": owner, "reason": "saml", "count": 1}))
+    assert text.startswith("- github.updates: some items: hidden by SAML")
+    assert str(owner) not in text.split("\n")[0]
+
+
+def test_malformed_hidden_entries_are_ignored_and_a_zero_count_is_not_shown() -> None:
+    text = note(hidden("x", 3, {"owner": "acme", "reason": "saml", "count": -1}))
+    assert text.split("\n\n")[0] == (
+        "- github.updates: acme: hidden by SAML single sign-on (authorise the token for SSO)"
+    )
+
+
+def test_an_empty_hidden_list_raises_no_alert() -> None:
+    assert note(hidden()).startswith("_None._")
+
+
+def test_without_hidden_an_older_source_keeps_the_partial_line() -> None:
+    for name, line in (
+        ("updates-saml", "- github.updates: GitHub hid some results (1 errors)"),
+        ("ci-failures-saml", "- github.ci_failures: GitHub hid some results (3 errors)"),
+    ):
+        entry = recorded(name)
+        assert "hidden" not in entry["data"]
+        assert note(entry).split("\n\n")[0] == line
+    old = {"source": "github.updates", "data": {"items": [], "partial": True}}
+    assert note(old).startswith("- github.updates: GitHub hid some results\n")
+
+
+def test_checks_hidden_from_this_token() -> None:
+    text = note(recorded("ci-failures-checks-hidden"))
+    assert " main — checks hidden from this token failing since 2026-10-29\n" in text
+    some = {
+        "source": "github.ci_failures",
+        "data": {
+            "items": [
+                {"repo": "a/b", "branch": "main", "checks": ["status"], "checks_hidden": True},
+                {"repo": "a/c", "branch": "main", "checks": [], "checks_hidden": False},
+            ]
+        },
+    }
+    text = note(some)
+    assert "a/b main — status failing" in text  # names read are listed
+    assert "a/c main — failing checks failing" in text
