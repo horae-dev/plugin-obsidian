@@ -17,6 +17,15 @@ LLM's text) goes through the SDK's `escape_title` and is written as a plain bull
 checkbox: it cannot become a live task, link, tag, field or Tasks signifier, and the note
 holds no `[ ]` that Tasks, or a later `obsidian.open_tasks` read, would count as a task.
 
+**GitHub items** (`${github}`, any `github.*` source's `items`): `[owner/repo#42](url) title`,
+the link only when the item's `url` passes the SDK's `is_task_link` and is on
+`https://github.com/`, the reference made here from the validated repository and integer
+number. A `github.updates` item adds who did what and when (`— carol approved 14:05`, the time
+in `timezone`, with its day when not `today`) and these items come first, newest first; a
+`github.ci_failures` item adds the branch, the failing checks and since when; the others keep
+their repository and number order. Each untrusted piece is escaped on its own and separated by
+spaces, so two pieces cannot meet into live syntax.
+
 **Sections** (placeholders of the template, `${name}`): `calendar`, `tasks` (grouped by
 due date: Overdue, Today, Tomorrow, Later, No date), `github`, `focus` (the LLM's `ranked`),
 `summary`, `alerts` (what the note does not show, see below) and `date`. A section with
@@ -24,7 +33,8 @@ nothing in it reads `_None._`. At most `max_items` lines per section or task gro
 `…and N more`.
 
 **Alerts** say what is missing, so a short note is not read as a quiet day: the source left
-tasks out (`more`, `output_cut`, `withheld`, `hidden`, `skipped`), entries that could not be
+tasks out (`more`, `output_cut`, `withheld`, `hidden`, `skipped`), a `github.*` source said
+it cut its list (`truncated`) or GitHub hid results (`partial`), entries that could not be
 read, and a source listed in `expect` that gave no data (it failed or was not collected).
 
 **The template** is the `template` parameter (per instance: the pipeline's parameters are
@@ -42,13 +52,13 @@ character.
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from horae_sdk import PluginError
 from horae_sdk.intents import IntentError, note_replace_owned_block
-from horae_sdk.tasks import SIGNIFIERS, escape_title
+from horae_sdk.tasks import SIGNIFIERS, escape_title, is_task_link, link_destination
 
 from horae_obsidian.reminders import clean
 from horae_obsidian.source import DEFAULT_OPEN_STATUSES
@@ -106,6 +116,20 @@ _BREAKS = re.compile(r"\n{3,}")
 _WHY = ("overdue", "today", "later")
 _REPO = re.compile(r"[A-Za-z0-9_.-]{1,100}/[A-Za-z0-9_.-]{1,100}")
 _REF = re.compile(r"[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+")
+GITHUB = "https://github.com/"
+_EVENTS = {
+    "opened": "opened",
+    "commented": "commented",
+    "reviewed": "reviewed",
+    "approved": "approved",
+    "changes_requested": "requested changes",
+    "pushed": "pushed",
+    "merged": "merged",
+    "closed": "closed",
+    "reopened": "reopened",
+    "review_requested": "requested your review",
+}
+"""`github.updates`' `event` in words."""
 
 
 class RenderError(PluginError):
@@ -248,7 +272,9 @@ class Collected:
     """`(due, description, key)` of the open tasks."""
     events: list[tuple[str, str, str]]
     """`(day, time, title)` with `day` ISO and `time` `HH:MM`, `""` for an all-day event."""
-    items: list[str]
+    items: list[tuple[tuple[int, float, str, int, str], str]]
+    """`(sort key, line)` of the GitHub items: timed ones (`github.updates`) newest first,
+    then by repository and number."""
     seen: set[str]
     alerts: list[str]
 
@@ -310,6 +336,88 @@ def _when(raw: object, zone: ZoneInfo | None) -> tuple[str, str] | None:
     return moment.date().isoformat(), f"{moment:%H:%M}"
 
 
+def _number(value: object) -> int | None:
+    ok = isinstance(value, int) and not isinstance(value, bool) and value >= 0
+    return value if ok else None  # type: ignore[return-value]
+
+
+def _moment(value: object) -> datetime | None:
+    if not isinstance(value, str):
+        return None
+    try:
+        moment = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    return moment if moment.tzinfo is not None else moment.replace(tzinfo=UTC)
+
+
+def _github_item(raw: object, s: Settings) -> tuple[tuple[int, float, str, int, str], str] | None:
+    """`(sort key, line)` of one `github.*` item, `None` when it has no title.
+
+    The line is `[owner/repo#42](url) title`: the link text is made here from the validated
+    repository and the integer number, and the link is the item's `url` only when the SDK's
+    `is_task_link` accepts it and it is on `https://github.com/` (plugin-github rebuilds it
+    from the same two fields), as an inert destination (`link_destination`); otherwise the
+    reference is plain text. Every untrusted string (title, login, branch, check names) is
+    escaped on its own and joined to the next by a space-bounded separator, so two escaped
+    pieces can never meet into a `::`, `%%` or `==`."""
+    if not isinstance(raw, Mapping):
+        return None
+    title = raw.get("item_title", raw.get("title"))
+    if not isinstance(title, str):
+        title = raw.get("title")
+    repo = raw.get("repo", raw.get("repository"))
+    if not isinstance(repo, str) or not _REPO.fullmatch(repo) or {".", ".."} & set(repo.split("/")):
+        repo = ""
+    number = _number(raw.get("number"))
+    checks = raw.get("checks")
+    if not isinstance(title, str) and not isinstance(checks, list):
+        return None
+    ref = (
+        f"{repo}#{number}"
+        if repo and number is not None
+        else repo or (f"#{number}" if number is not None else "")
+    )
+    url = raw.get("url")
+    if ref and isinstance(url, str) and url.startswith(GITHUB) and is_task_link(url):
+        head = f"[{_line(ref)}]({link_destination(url)})"
+    else:
+        head = _line(ref) if ref else ""
+    parts = [head] if head else []
+    at = _moment(raw.get("at"))
+    event = _EVENTS.get(raw.get("event"))  # type: ignore[arg-type]
+    if isinstance(checks, list):  # github.ci_failures
+        branch = raw.get("branch")
+        if isinstance(branch, str) and branch:
+            parts += [_line(branch, 100), "—"]
+        names = [c for c in checks if isinstance(c, str) and c][:10]
+        more = _count(raw.get("more_checks"))
+        listed = ", ".join(names) + (f" and {more} more" if more else "")
+        parts.append(_line(listed) if names else "failing checks")
+        unread = _count(raw.get("unread_checks"))
+        if unread:
+            parts.append(f"({unread} checks not read)")
+        since = _day(raw.get("since"))
+        parts.append(f"failing since {since.isoformat()}" if since else "failing")
+    elif event is not None and isinstance(title, str):  # github.updates
+        by = raw.get("by")
+        parts += [_line(title), "—"]
+        if isinstance(by, str) and by:
+            parts.append(_line(by, 60))
+        parts.append(event)
+    else:  # another github source, or an update without a known event: its own `title`
+        summary = raw.get("title")
+        parts.append(_line(summary if isinstance(summary, str) else title))
+    if at is not None:
+        when = _when(at.isoformat(), s.zone)
+        if when is not None:
+            parts.append(when[1] if when[0] == s.today.isoformat() else f"{when[0]} {when[1]}")
+    line = " ".join(parts)
+    if at is not None:
+        return (0, -at.timestamp(), "", 0, line), line
+    return (1, 0.0, repo.lower(), -1 if number is None else number, line), line
+
+
 def _collect(input: object, settings: Settings) -> Collected:
     if not isinstance(input, list):
         raise RenderError("the input is the collect step's list of sources")
@@ -365,17 +473,20 @@ def _collect(input: object, settings: Settings) -> Collected:
                 unreadable += 1
                 continue
             for raw in raws[:MAX_SCANNED]:
-                title = raw.get("title") if isinstance(raw, Mapping) else None
-                if not isinstance(title, str):
+                item = _github_item(raw, settings)
+                if item is None:
                     skipped += 1
-                    continue
-                repo = raw.get("repo", raw.get("repository"))
-                number = raw.get("number")
-                prefix = repo if isinstance(repo, str) and _REPO.fullmatch(repo) else ""
-                if isinstance(number, int) and not isinstance(number, bool) and number >= 0:
-                    prefix = f"{prefix} {number}".strip()
-                out.items.append(f"{prefix} {_line(title)}".strip())
+                else:
+                    out.items.append(item)
             skipped += max(0, len(raws) - MAX_SCANNED)
+            if isinstance(data, Mapping):
+                name = ref if _REF.fullmatch(ref) else "a github source"
+                if data.get("truncated") is True:
+                    out.alerts.append(f"{name} had more items than it returned (truncated)")
+                if data.get("partial") is True:
+                    errors = _count(data.get("errors"))
+                    hidden = f" ({errors} errors)" if errors else ""
+                    out.alerts.append(f"{name}: GitHub hid some results{hidden}")
     if unreadable:
         out.alerts.append(f"{unreadable} sources returned data that could not be read")
     if skipped:
@@ -455,7 +566,7 @@ def render(settings: Settings, input: object) -> tuple[str, Collected]:
         "alerts": _block(_bullets(found.alerts, settings.max_items)),
         "calendar": _calendar_section(found.events, settings),
         "tasks": _tasks_section(found.tasks, settings),
-        "github": _block(_bullets(sorted(found.items), settings.max_items)),
+        "github": _block(_bullets([line for _, line in sorted(found.items)], settings.max_items)),
     }
     text = _BREAKS.sub("\n\n", _fill(settings.template, values)).strip("\n") + "\n"
     if len(text) > MAX_RENDERED:

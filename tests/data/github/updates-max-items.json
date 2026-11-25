@@ -1,0 +1,44 @@
+{
+  "source": "github.updates",
+  "data": {
+    "kind": "updates",
+    "day": "2026-10-30",
+    "since": "2026-10-16",
+    "items": [
+      {
+        "fingerprint": "github:update:I_up6:I_up6",
+        "item_fingerprint": "github:issue:I_up6",
+        "type": "issue",
+        "repo": "acme-up/api",
+        "number": 6,
+        "item_title": "Crash on start",
+        "event": "opened",
+        "by": "erin",
+        "at": "2026-10-27T10:00:00Z",
+        "your_last_action": null,
+        "url": "https://github.com/acme-up/api/issues/6",
+        "title": "Crash on start — erin opened"
+      },
+      {
+        "fingerprint": "github:update:PR_up4:PRR_8",
+        "item_fingerprint": "github:pr:PR_up4",
+        "type": "pr",
+        "repo": "acme-up/app",
+        "number": 4,
+        "item_title": "Add retries",
+        "event": "approved",
+        "by": "carol",
+        "at": "2026-10-26T10:00:00Z",
+        "your_last_action": "2026-10-18T10:00:00Z",
+        "url": "https://github.com/acme-up/app/pull/4",
+        "title": "Add retries — carol approved"
+      }
+    ],
+    "checked": 8,
+    "truncated": true,
+    "filtered": 4,
+    "skipped": 1,
+    "partial": false,
+    "errors": 0
+  }
+}

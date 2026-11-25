@@ -38,4 +38,4 @@ _None._
 
 ## GitHub
 
-- acme/app 42 Fix the thing
+- [acme/app\#42](https://github.com/acme/app/pull/42) Fix the thing
