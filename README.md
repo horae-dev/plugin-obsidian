@@ -4,12 +4,14 @@
 
 Horae plugin: read and write an Obsidian vault (Obsidian Tasks syntax), owning only its own files and blocks.
 
-> 🚧 **In progress.** The Tasks parser, the note sink, the `obsidian.open_tasks` source, the task sink and the `obsidian.reminders` transform are in; nothing is released yet. Follow progress on the [Horae roadmap project](https://github.com/orgs/horae-dev/projects/1).
+**Docs:** <https://horae-dev.github.io/docs/plugins/obsidian/>
 
-## What this plugin will do
+> 🚧 **Early (0.2.1, listed in the [marketplace](https://github.com/horae-dev/marketplace)).** The `obsidian.open_tasks` source, the `obsidian.write_note` and `obsidian.write_task` sinks and the `obsidian.reminders` and `obsidian.render_note` transforms are released. Install with `horae plugin add obsidian --allow-path /path/to/your/vault`. Follow progress on the [Horae roadmap project](https://github.com/orgs/horae-dev/projects/1).
 
-It will read the tasks of a vault as a Horae source and write notes and task status changes
-back as sinks, touching only the files and blocks Horae owns. It will declare every host, secret, path and intent it uses in `plugin.yaml`, and it will only return **intents**: the Horae core validates and applies them.
+## What this plugin does
+
+It reads the tasks of a vault as a Horae source and writes notes and task status changes
+back as sinks, touching only the files and blocks Horae owns. It declares every host, secret, path and intent it uses in `plugin.yaml`, and it only returns **intents**: the Horae core validates and applies them.
 
 ## Reading Obsidian Tasks (#2)
 
