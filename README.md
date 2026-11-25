@@ -379,12 +379,29 @@ _None._
 
 ## GitHub
 
-- acme/app 42 Fix the thing
+- [acme/app\#42](https://github.com/acme/app/pull/42) Fix the thing
 ````
+
+**GitHub items** (`${github}`, the `items` of any `github.*` source, plugin-github 0.5.0 or
+later for the fields below) are one line each, `[owner/repo#42](url) title`. The link is the
+item's `url` only when it passes the SDK's task-link check and is on `https://github.com/`
+(otherwise the reference is plain text); the reference is made from the validated repository
+and the integer number, never from GitHub's text.
+
+- `github.updates`: who did what, and when, in `timezone`, the day added when it is not
+  `today`. These lines come first, **newest first**:
+  `[acme-up/app#4](https://github.com/acme-up/app/pull/4) Add retries — carol approved 14:05`.
+- `github.ci_failures`: the branch, the failing checks and since when, the pull request in the
+  reference: `[acme-org/api#12](…/actions/runs/9100) feature/cache — Nightly / unit failing since 2026-10-29`.
+- Any other `github.*` source: the reference and the title, by repository and number.
+
+The source's `truncated` (more items than it returned) and `partial` (GitHub hid results,
+typically SAML single sign-on) flags become alerts, as the task source's do.
 
 **Untrusted text is inert.** Every task description, event title, pull request title and LLM
 string goes through the SDK's `escape_title` and is written as a plain bullet, never as a
-checkbox: it cannot become a live task, link, tag, field or signifier, and a later
+checkbox: it cannot become a live task, link, tag, field or signifier (titles, logins, branch
+and check names are escaped one by one, and the only link is the GitHub one above), and a later
 `obsidian.open_tasks` read finds no task in the note (the tests check this with this plugin's
 own parser).
 

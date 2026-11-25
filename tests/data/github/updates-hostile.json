@@ -1,0 +1,30 @@
+{
+  "source": "github.updates",
+  "data": {
+    "kind": "updates",
+    "day": "2026-10-30",
+    "since": "2026-10-16",
+    "items": [
+      {
+        "fingerprint": "github:update:I_h1:IC_19",
+        "item_fingerprint": "github:issue:I_h1",
+        "type": "issue",
+        "repo": "acme-hostile/app",
+        "number": 1,
+        "item_title": "- [ ] task 📅 2020-01-01 🔁 every day [[Secret]] <script>x</script> https://evil.example/a #tag",
+        "event": "commented",
+        "by": "mal[[x]]](https://evil.example) 📅 2020-01-01",
+        "at": "2026-10-29T10:00:00Z",
+        "your_last_action": null,
+        "url": "https://github.com/acme-hostile/app/issues/1",
+        "title": "- [ ] task 📅 2020-01-01 🔁 every day [[Secret]] <script>x</script> https://evil.example/a #tag — mal[[x]]](https://evil.example) 📅 2020-01-01 commented"
+      }
+    ],
+    "checked": 1,
+    "truncated": false,
+    "filtered": 0,
+    "skipped": 6,
+    "partial": false,
+    "errors": 0
+  }
+}

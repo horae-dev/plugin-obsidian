@@ -1,0 +1,30 @@
+{
+  "source": "github.ci_failures",
+  "data": {
+    "kind": "ci_failures",
+    "day": "2026-10-30",
+    "items": [
+      {
+        "fingerprint": "github:ci:acme-saml-visible:branch-main:cfc2b8d17a9754a9f8fcbee93cc716eed071b527::0904fab3aae705e3",
+        "repo": "acme-saml/visible",
+        "branch": "main",
+        "number": null,
+        "sha": "cfc2b8d",
+        "checks": [
+          "build"
+        ],
+        "more_checks": 0,
+        "unread_checks": 0,
+        "since": "2026-10-29",
+        "url": "https://github.com/acme-saml/visible/commit/cfc2b8d17a9754a9f8fcbee93cc716eed071b527",
+        "title": "main: build failing since 2026-10-29 (cfc2b8d)"
+      }
+    ],
+    "checked": 1,
+    "truncated": false,
+    "filtered": 0,
+    "skipped": 1,
+    "partial": true,
+    "errors": 3
+  }
+}

@@ -77,7 +77,14 @@ def full() -> list[dict[str, Any]]:
             {"title": "Offsite", "start": "2026-11-10"},
             {"title": "Lunch", "start": f"{TODAY}T12:00:00+01:00"},
         ],
-        [{"repo": "acme/app", "number": 42, "title": "Fix the thing"}],
+        [
+            {
+                "repo": "acme/app",
+                "number": 42,
+                "title": "Fix the thing",
+                "url": "https://github.com/acme/app/pull/42",
+            }
+        ],
     )
 
 
@@ -117,12 +124,13 @@ def test_hostile_text_stays_inert_under_the_plugins_own_parser(title: str) -> No
     data = sources(
         [task(title, "2026-11-01"), task(title, TODAY), task(title)],
         [{"title": title, "start": f"{TODAY}T09:00:00Z"}],
-        [{"repo": "a/b", "number": 1, "title": title}],
+        [{"repo": "a/b", "number": 1, "title": title, "url": "https://github.com/a/b/pull/1"}],
     )
     text = content({"summary": title, "ranked": [{"title": title, "why": "today"}]}, data)
     document = parse(text.encode())
     assert document.tasks == ()  # no checkbox: nothing a later read counts as a task
     for line in text.splitlines():
+        line = line.replace("[a/b\\#1](https://github.com/a/b/pull/1)", "")  # the one link
         for live in ("[[", "![", "::", "%%", "horae:", "<!--", "]("):
             assert live not in line, line
         assert re.search(r"(?<!\\):/", line) is None, line

@@ -1,0 +1,46 @@
+{
+  "source": "github.ci_failures",
+  "data": {
+    "kind": "ci_failures",
+    "day": "2026-10-30",
+    "items": [
+      {
+        "fingerprint": "github:ci:acme-org-api:branch-main:9c13c49ba052aba9eaeb62c1804d5afae10d4ad7::8856c4734226bbbb",
+        "repo": "acme-org/api",
+        "branch": "main",
+        "number": null,
+        "sha": "9c13c49",
+        "checks": [
+          "Nightly / build",
+          "Nightly / test"
+        ],
+        "more_checks": 0,
+        "unread_checks": 0,
+        "since": "2026-10-30",
+        "url": "https://github.com/acme-org/api/actions/runs/9001",
+        "title": "main: Nightly / build, Nightly / test failing since 2026-10-30 (9c13c49)"
+      },
+      {
+        "fingerprint": "github:ci:acme-org-api:pr-12:19bd293ab160626a19e4ba7c4b1b314fbbc01191::29340806f9fd465b",
+        "repo": "acme-org/api",
+        "branch": "feature/cache",
+        "number": 12,
+        "sha": "19bd293",
+        "checks": [
+          "Nightly / unit"
+        ],
+        "more_checks": 0,
+        "unread_checks": 0,
+        "since": "2026-10-29",
+        "url": "https://github.com/acme-org/api/actions/runs/9100",
+        "title": "pull request on feature/cache: Nightly / unit failing since 2026-10-29 (19bd293)"
+      }
+    ],
+    "checked": 9,
+    "truncated": true,
+    "filtered": 7,
+    "skipped": 0,
+    "partial": false,
+    "errors": 0
+  }
+}

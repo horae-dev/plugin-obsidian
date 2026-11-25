@@ -1,0 +1,91 @@
+{
+  "source": "github.ci_failures",
+  "data": {
+    "kind": "ci_failures",
+    "day": "2026-10-30",
+    "items": [
+      {
+        "fingerprint": "github:ci:acme-org-api:branch-main:9c13c49ba052aba9eaeb62c1804d5afae10d4ad7::8856c4734226bbbb",
+        "repo": "acme-org/api",
+        "branch": "main",
+        "number": null,
+        "sha": "9c13c49",
+        "checks": [
+          "Nightly / build",
+          "Nightly / test"
+        ],
+        "more_checks": 0,
+        "unread_checks": 0,
+        "since": "2026-10-30",
+        "url": "https://github.com/acme-org/api/actions/runs/9001",
+        "title": "main: Nightly / build, Nightly / test failing since 2026-10-30 (9c13c49)"
+      },
+      {
+        "fingerprint": "github:ci:acme-org-api:pr-12:19bd293ab160626a19e4ba7c4b1b314fbbc01191::29340806f9fd465b",
+        "repo": "acme-org/api",
+        "branch": "feature/cache",
+        "number": 12,
+        "sha": "19bd293",
+        "checks": [
+          "Nightly / unit"
+        ],
+        "more_checks": 0,
+        "unread_checks": 0,
+        "since": "2026-10-29",
+        "url": "https://github.com/acme-org/api/actions/runs/9100",
+        "title": "pull request on feature/cache: Nightly / unit failing since 2026-10-29 (19bd293)"
+      },
+      {
+        "fingerprint": "github:ci:acme-org-docs:branch-trunk:1eb974a68bff655ca4a96d8278301e0e1e125494::16848842573f17ca",
+        "repo": "acme-org/docs",
+        "branch": "trunk",
+        "number": null,
+        "sha": "1eb974a",
+        "checks": [
+          "ci/external"
+        ],
+        "more_checks": 0,
+        "unread_checks": 0,
+        "since": "2026-10-19",
+        "url": "https://github.com/acme-org/docs/commit/1eb974a68bff655ca4a96d8278301e0e1e125494",
+        "title": "trunk: ci/external failing since 2026-10-19 (1eb974a)"
+      },
+      {
+        "fingerprint": "github:ci:acme-user-dotfiles:branch-main:c4e9075f8417cda895e7a4748e7d2b21317ab043::c00fc88c77e5dbdb",
+        "repo": "acme-user/dotfiles",
+        "branch": "main",
+        "number": null,
+        "sha": "c4e9075",
+        "checks": [
+          "Lint"
+        ],
+        "more_checks": 0,
+        "unread_checks": 59,
+        "since": "2026-10-25",
+        "url": "https://github.com/acme-user/dotfiles/actions/runs/77",
+        "title": "main: Lint (59 checks not read) failing since 2026-10-25 (c4e9075)"
+      },
+      {
+        "fingerprint": "github:ci:acme-user-dotfiles:pr-3:58dc9e02ced28bae38b2251bacff9aec6eaee672::277b6546e16d7e34",
+        "repo": "acme-user/dotfiles",
+        "branch": "auto-backup/2026-10-29",
+        "number": 3,
+        "sha": "58dc9e0",
+        "checks": [
+          "Auto-merge"
+        ],
+        "more_checks": 0,
+        "unread_checks": 0,
+        "since": "2026-10-29",
+        "url": "https://github.com/acme-user/dotfiles/pull/3",
+        "title": "pull request on auto-backup/2026-10-29: Auto-merge failing since 2026-10-29 (58dc9e0)"
+      }
+    ],
+    "checked": 9,
+    "truncated": false,
+    "filtered": 7,
+    "skipped": 0,
+    "partial": false,
+    "errors": 0
+  }
+}

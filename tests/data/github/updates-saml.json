@@ -1,0 +1,30 @@
+{
+  "source": "github.updates",
+  "data": {
+    "kind": "updates",
+    "day": "2026-10-30",
+    "since": "2026-10-16",
+    "items": [
+      {
+        "fingerprint": "github:update:I_s1:I_s1",
+        "item_fingerprint": "github:issue:I_s1",
+        "type": "issue",
+        "repo": "acme-saml/visible",
+        "number": 1,
+        "item_title": "Visible issue",
+        "event": "opened",
+        "by": "bob",
+        "at": "2026-10-29T10:00:00Z",
+        "your_last_action": null,
+        "url": "https://github.com/acme-saml/visible/issues/1",
+        "title": "Visible issue — bob opened"
+      }
+    ],
+    "checked": 1,
+    "truncated": false,
+    "filtered": 0,
+    "skipped": 0,
+    "partial": true,
+    "errors": 1
+  }
+}
